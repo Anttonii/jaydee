@@ -2,6 +2,9 @@ name: ci-cd
 
 on: [push, pull_request]
 
+env:
+  PUBLISH_PACKAGE: false
+
 jobs:
   ci:
     # Set up operating system
@@ -24,7 +27,7 @@ jobs:
         run: poetry install
 
       - name: Test with pytest
-        run: poetry run pytest tests/ --cov=job_data_scraper --cov-report=xml
+        run: poetry run pytest tests/ --cov=scraper --cov-report=xml
 
       - name: Use Codecov to track coverage
         uses: codecov/codecov-action@v3
@@ -43,7 +46,8 @@ jobs:
     needs: ci
 
     # Only run this job if new work is pushed to "main"
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # currently set to false since we don't need to deploy to anywhere.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && false
 
     # Set up operating system
     runs-on: ubuntu-latest
@@ -79,7 +83,7 @@ jobs:
             pip install \
             --index-url https://test.pypi.org/simple/ \
             --extra-index-url https://pypi.org/simple \
-            job_data_scraper
+            scraper
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
