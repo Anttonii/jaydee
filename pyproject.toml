@@ -18,6 +18,7 @@ start = "scraper.main:start"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
+coverage = "^7.6.8"
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:tool.poetry.version"] # version location
