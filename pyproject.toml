@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "scraper"
+version = "0.1.0"
+description = "Scrap job data from multiple sources"
+authors = ["Anttoni Koivu"]
+license = "None"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.32.3"
+beautifulsoup4 = "^4.12.3"
+
+[tool.poetry.scripts]
+start = "scraper.main:start"
+
+[tool.poetry.dev-dependencies]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:tool.poetry.version"] # version location
+branch = "main"                                       # branch to make releases of
+changelog_file = "CHANGELOG.md"                       # changelog file
+build_command = "pip install poetry && poetry build"  # build dists 
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
