@@ -1,0 +1,19 @@
+[
+    {
+        "target": "body",
+        "attributes": {
+            "element": "div",
+            "class_name": "node__content"
+        }
+    },
+    {
+        "target": "title",
+        "attributes": {
+            "element": "h2",
+            "child_of": {
+                "element": "div",
+                "class_name": "pane-node-title"
+            }
+        }
+    }
+]

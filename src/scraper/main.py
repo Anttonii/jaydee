@@ -1,39 +1,25 @@
-import os
 import requests
 
-from .scraper import Scraper, ScraperRule
+from .scraper import Scraper
 
 
 def start():
-    offline = False
-
-    rules = [
-        ScraperRule("body",
-                    attributes={
-                        "element": "div",
-                        "class_name": "node__content"
-                    }),
-        ScraperRule(
-            "title",
-            attributes={
-                "element": "h2",
-                "child_of": {
-                    "element": "div",
-                    "class_name": "pane-node-title"
-                }
-            },
-        ),
-    ]
+    offline = True
 
     if not offline:
         r = requests.get(
             "https://www.jobly.fi/tyopaikka/director-licensing-iot-2222448")
-        scraper = Scraper(html_doc=r.content, rules=rules)
+        scraper = Scraper(html_doc=r.content).from_json("data/rules.json")
+
+        # Store for offline use
+        with open('data/test.html', 'w+') as output:
+            output.write(str(r.content, encoding="utf-8"))
     else:
         html_doc = ''
-        with open('/Users/anttoni/programming/jdscraper/data/test.html', 'r') as file:
+        with open('data/test.html', 'r') as file:
             html_doc = file.readlines()
-        scraper = Scraper(html_doc=html_doc[0], rules=rules)
+        html_doc = "".join(html_doc)
+        scraper = Scraper(html_doc=html_doc).from_json("data/rules.json")
 
     result = scraper.scrape()
 
