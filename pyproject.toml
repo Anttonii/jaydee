@@ -1,18 +1,14 @@
 [tool.poetry]
-name = "scraper"
-version = "0.1.0"
-description = "Scrap job data from multiple sources"
+name = "jaydee"
+version = "1.0.0"
+description = "Scrape websites with a given schema."
 authors = ["Anttoni Koivu"]
 license = "None"
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-requests = "^2.32.3"
-beautifulsoup4 = "^4.12.3"
-
-[tool.poetry.scripts]
-start = "scraper.main:start"
+beautifulsoup4 = "4.12.3"
 
 [tool.poetry.dev-dependencies]
 
@@ -33,7 +29,6 @@ build-backend = "poetry.core.masonry.api"
 # pyproject.toml
 [tool.pytest.ini_options]
 minversion = "6.0"
-testpaths = [
-    "tests",
-]
-pythonpath = "src/scraper"
+addopts = ["-v"]
+testpaths = ["tests"]
+pythonpath = "src/jaydee"

@@ -1,7 +1,6 @@
 # Changelog
 
-<!--next-version-placeholder-->
+## v1.0.0 (2/12/2024)
 
-## v0.1.0 (27/11/2024)
-
-- First release of `job_data_scraper`!
+- Scraper core functionality implemented.
+- Tests for core functionality implemented.

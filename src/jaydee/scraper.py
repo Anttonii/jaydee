@@ -1,13 +1,93 @@
 import json
 import logging
+import os
 
 from bs4 import BeautifulSoup
 
 # Setup the scraper specific logger
-logger = logging.getLogger('scraper')
+logger = logging.getLogger("scraper")
 
-VALID_ELEMENTS = ["a", "abbr", "acronym", "address", "area", "b", "base", "bdo", "big", "blockquote", "body", "br", "button", "caption", "cite", "code", "col", "colgroup", "dd", "del", "dfn", "div", "dl", "DOCTYPE", "dt", "em", "fieldset", "form", "h1", "h2", "h3", "h4", "h5", "h6", "head", "html", "hr", "i", "img",
-                  "input", "ins", "kbd", "label", "legend", "li", "link", "map", "meta", "noscript", "object", "ol", "optgroup", "option", "p", "param", "pre", "q", "samp", "script", "select", "small", "span", "strong", "style", "sub", "sup", "table", "tbody", "td", "textarea", "tfoot", "th", "thead", "title", "tr", "tt", "ul", "var"]
+# Valid HTML elements. Used for validating rules.
+VALID_ELEMENTS = [
+    "a",
+    "abbr",
+    "acronym",
+    "address",
+    "area",
+    "b",
+    "base",
+    "bdo",
+    "big",
+    "blockquote",
+    "body",
+    "br",
+    "button",
+    "caption",
+    "cite",
+    "code",
+    "col",
+    "colgroup",
+    "dd",
+    "del",
+    "dfn",
+    "div",
+    "dl",
+    "DOCTYPE",
+    "dt",
+    "em",
+    "fieldset",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "head",
+    "html",
+    "hr",
+    "i",
+    "img",
+    "input",
+    "ins",
+    "kbd",
+    "label",
+    "legend",
+    "li",
+    "link",
+    "map",
+    "meta",
+    "noscript",
+    "object",
+    "ol",
+    "optgroup",
+    "option",
+    "p",
+    "param",
+    "pre",
+    "q",
+    "samp",
+    "script",
+    "select",
+    "small",
+    "span",
+    "strong",
+    "style",
+    "sub",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "textarea",
+    "tfoot",
+    "th",
+    "thead",
+    "title",
+    "tr",
+    "tt",
+    "ul",
+    "var",
+]
 
 
 class ScraperRule:
@@ -34,12 +114,13 @@ class ScraperRule:
             target: the key that will store the resulting elements text after scraping.
                     Do note that this is an unique identifier.
             attributes: an object that contains the scraping attributes
+        Raises:
+            ValueException when validation of the rule fails.
         """
-        if not ("id" in attributes or "class_name" in attributes or "element" in attributes):
-            raise ValueError(
-                "Attributes provide no narrowing of the DOM and are thus invalid.")
+        # First validate the rule.
+        self.__validate_rule(attributes)
 
-        if target == "":
+        if not target or target == "":
             raise ValueError("Target can not be an emptry string.")
 
         self._target = target
@@ -67,6 +148,32 @@ class ScraperRule:
         """
         return self._attribs[key]
 
+    def __validate_rule(self, attributes: dict[str, str | dict]):
+        """
+        Utility function that validates rule. An invalid rule can't be used for scraping.
+
+        For example a rule with a defined element that is not a valid HTML element tag would be an invalid rule.
+
+        Args:
+            attributes: the attributes passed in the constructor
+        Raises:
+            ValueException: when a rule is found to be invalid.
+        """
+        if not (
+            "id" in attributes or "class_name" in attributes or "element" in attributes
+        ):
+            raise ValueError(
+                "Attributes provide no valid scraping of the DOM and are thus invalid.\nMake sure to have at least defined an element or a class for scraping."
+            )
+
+        if "element" in attributes:
+            if attributes["element"] not in VALID_ELEMENTS:
+                raise ValueError(f"Invalid HTML element: {attributes['element']}")
+
+        # Validate children recursively
+        if "child_of" in attributes:
+            self.__validate_rule(attributes["child_of"])
+
     @property
     def attributes(self):
         return self._attribs
@@ -82,7 +189,7 @@ class ScraperRule:
                 f" - looks for element: {self._attribs['element']}",
                 f" - with class name: {self._attribs['class_name']}",
                 f" - with id: {self._attribs['id']}",
-                f" - with child rules: {self._attribs['child_of']}"
+                f" - with child rules: {self._attribs['child_of']}",
             ]
         )
 
@@ -93,17 +200,22 @@ class Scraper:
     what data to scrape from the HTML docuemnt.
     """
 
-    # The inner list of scraper rules and targets.
-    rules = []
-    targets = []
+    # The inner dictionary of rules. Keys here are target values of rules.
+    rules = {}
 
     def __init__(self, html_doc: str):
+        """
+        Initializes the scraper instance.
+
+        Args:
+            html_doc: the html document to scrape data from.
+        """
         self.document = html_doc
         self.parser = BeautifulSoup(html_doc, "html.parser")
 
     def add_rule(self, rule: ScraperRule):
         """
-        Utility function that adds a rule to the scraper if it is considered valid.
+        Utility function that adds a rule to the scraper.
 
         Args:
             rules: The rules to add to the scraper
@@ -113,20 +225,16 @@ class Scraper:
         """
         logging.info(f"Adding rule with target: {rule.target}")
 
-        # TODO: check recursively for child rules elements
-        if 'element' in rule.attributes and rule.attributes['element'] not in VALID_ELEMENTS:
-            raise ScraperException("Invalid HTML element.")
-
-        if rule.target in self.targets:
+        if rule.target in self.rules:
             raise ScraperException(
-                "Attempting to add a rule with overlapping target with another rule.")
+                "Attempting to add a rule with overlapping target with another rule."
+            )
 
-        self.targets.append(rule.target)
-        self.rules.append(rule)
+        self.rules[rule.target] = rule
 
     def add_rules(self, rules: list[ScraperRule]):
         """
-        Utility function that adds rules to the scraper.
+        Utility function that adds a list ofrules to the scraper.
 
         Args:
             rules: The rules to add to the scraper
@@ -141,25 +249,29 @@ class Scraper:
 
         return self
 
-    def from_json(self, json_path: str):
+    def from_json(self, json_data: str):
         """
-        Import rules from a json file.
+        Import rules from a JSON file or a JSON string.
 
         Args:
-            json_path: the path to import the file from.
+            json_data: the path or the json string to import the JSON data from.
 
         Returns:
-            Instance of self with rules loaded from the json file.
+            Instance of self with rules loaded from the given JSON object.
         """
         try:
-            with open(json_path) as json_file:
-                rules = json.load(json_file)
+            # check if the path exists, if not consider the string to be a valid json.
+            if not os.path.exists(json_data):
+                rules = json.loads(json_data)
+            else:
+                with open(json_data) as json_file:
+                    rules = json.load(json_file)
 
             for rule in rules:
                 self.add_rule(ScraperRule(**rule))
 
         except Exception as e:
-            logger.info(f"Failed to load rules from path: {json_path}.")
+            logger.info(f"Failed to load rules from: {json_data}")
             logger.error(e)
 
         return self
@@ -173,6 +285,7 @@ class Scraper:
         Returns:
             Dictionary with keys that map to the provided rules targets.
         """
+
         def build_attribs(attribs: dict[str, str | dict]) -> dict[str, str]:
             """
             Helper method that converts ScraperRules attributes to a BeautifulSoup
@@ -190,35 +303,46 @@ class Scraper:
 
         result = {}
 
-        for rule in self.rules:
-            curr = rule['child_of']
+        if len(self.rules) == 0:
+            logger.error("Can't scrape a document with 0 rules set.")
+            return result
+
+        for target, rule in self.rules.items():
+            curr = rule["child_of"]
             child_rules = []
 
             while curr:
                 child_rules.append(curr)
 
-                if 'child_of' in curr:
+                if "child_of" in curr:
                     curr = curr["child_of"]
                 else:
                     curr = None
 
             curr_target = self.parser
-            for child_rule in child_rules:
+            while child_rules:
+                child_rule = child_rules.pop()
+
                 # found no child elements, improper rule
                 if not curr_target:
-                    logger.info(f"No data loaded for rule: {rule}")
-                    result[rule.target] = ""
-                    continue
+                    logger.info(
+                        f"No data loaded for rule: {rule} in child rule: {child_rule}"
+                    )
+                    break
 
                 attrs = build_attribs(child_rule)
-                if 'element' in child_rule:
+                if "element" in child_rule:
                     curr_target = curr_target.find_all(
-                        child_rule['element'],
-                        attrs=attrs
+                        child_rule["element"], attrs=attrs
                     )
                 else:
                     curr_target = curr_target.find_all(attrs=attrs)
+
                 curr_target = BeautifulSoup(str(curr_target), "html.parser")
+
+            if not curr_target:
+                result[rule.target] = ""
+                continue
 
             attrs = build_attribs(rule.attributes)
             if rule["element"]:
@@ -231,10 +355,18 @@ class Scraper:
                 result[rule.target] = ""
                 continue
 
-            result[rule.target] = "\n".join(
-                [el.get_text().strip() for el in data])
+            result[target] = "\n".join([el.get_text().strip() for el in data])
 
         return result
+
+    def reset(self):
+        """
+        Resets the inner parser object back to the state of object construction.
+
+        Also clears the list of rules defined.
+        """
+        self.parser = BeautifulSoup(self.document, "html.parser")
+        self.rules = {}
 
 
 class ScraperException(Exception):

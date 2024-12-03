@@ -1,25 +1,32 @@
-# Scraper
+# Jaydee
 
-Scrap job data from multiple sources
+Scrape HTML documents using a .json file schema.
 
 ## Installation
 
+Make sure that Jaydee is recognizable by poetry by adding it to your `pyproject.toml` and afterwards:
+
 ```bash
-$ pip install scraper
+poetry install
 ```
 
 ## Usage
 
-- TODO
+```python
+import requests
 
-## Contributing
+from jaydee import Scraper
 
-Interested in contributing? Check out the contributing guidelines. Please note that this project is released with a Code of Conduct. By contributing to this project, you agree to abide by its terms.
+# Retrieve an HTML document.
+r = requests.get("https://example.com")
+
+# Setup the scraper with rules according to a .json file.
+scraper = Scraper(html_doc=r.content).from_json("data/rules.json")
+
+# Get a result
+result = scraper.scrape()
+```
 
 ## License
 
-`scraper` was created by Anttoni Koivu. Anttoni Koivu retains all rights to the source and it may not be reproduced, distributed, or used to create derivative works.
-
-## Credits
-
-`scraper` was created with [`cookiecutter`](https://cookiecutter.readthedocs.io/en/latest/) and the `py-pkgs-cookiecutter` [template](https://github.com/py-pkgs/py-pkgs-cookiecutter).
+This repository is licensed under the MIT license.
