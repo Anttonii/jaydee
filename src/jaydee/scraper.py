@@ -5,7 +5,7 @@ import os
 from bs4 import BeautifulSoup
 
 # Setup the scraper specific logger
-logger = logging.getLogger("scraper")
+logger = logging.getLogger("jd-scraper")
 
 # Valid HTML elements. Used for validating rules.
 VALID_ELEMENTS = [
@@ -92,8 +92,7 @@ VALID_ELEMENTS = [
 
 class ScraperRule:
     """
-    Scraper options allows scraper to properly align certain elements
-    into correct values in a hashmap.
+    Scraper rules assign
     """
 
     def __init__(
@@ -129,6 +128,7 @@ class ScraperRule:
             "id": None,
             "element": None,
             "class_name": None,
+            "property": None,
             "child_of": None,
         }
 
@@ -160,7 +160,10 @@ class ScraperRule:
             ValueException: when a rule is found to be invalid.
         """
         if not (
-            "id" in attributes or "class_name" in attributes or "element" in attributes
+            "id" in attributes
+            or "class_name" in attributes
+            or "element" in attributes
+            or "property" in attributes
         ):
             raise ValueError(
                 "Attributes provide no valid scraping of the DOM and are thus invalid.\nMake sure to have at least defined an element or a class for scraping."
@@ -283,7 +286,7 @@ class Scraper:
         TODO: Improve error handling
 
         Returns:
-            Dictionary with keys that map to the provided rules targets.
+            Dictionary with keys (rules targets) that map to the extracted properties or text.
         """
 
         def build_attribs(attribs: dict[str, str | dict]) -> dict[str, str]:
@@ -308,6 +311,8 @@ class Scraper:
             return result
 
         for target, rule in self.rules.items():
+            result[target] = []
+
             curr = rule["child_of"]
             child_rules = []
 
@@ -341,21 +346,29 @@ class Scraper:
                 curr_target = BeautifulSoup(str(curr_target), "html.parser")
 
             if not curr_target:
-                result[rule.target] = ""
+                logger.warning(
+                    f"After processing child rules, no data was found for: {rule}"
+                )
                 continue
 
             attrs = build_attribs(rule.attributes)
+
             if rule["element"]:
                 data = curr_target.find_all(rule["element"], attrs=attrs)
             else:
                 data = curr_target.find_all(attrs=attrs)
 
             if len(data) == 0:
-                logger.info(f"No data loaded for rule: {rule}")
-                result[rule.target] = ""
+                logger.warning(f"No data loaded for rule: {rule}")
                 continue
 
-            result[target] = "\n".join([el.get_text().strip() for el in data])
+            # Check first if we want to parse properties instead of text.
+            if rule["property"]:
+                property = rule["property"]
+
+                result[target] = [el[property] for el in data if el.has_attr(property)]
+            else:
+                result[target] = "\n".join([el.get_text().strip() for el in data])
 
         return result
 

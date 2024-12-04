@@ -28,6 +28,24 @@ def test_rules():
 
 
 @pytest.fixture(scope="class")
+def test_rules_for_properties():
+    return [
+        ScraperRule(
+            target="links",
+            attributes={"element": "a", "property": "href"},
+        ),
+        ScraperRule(
+            target="links2",
+            attributes={
+                "element": "a",
+                "property": "href",
+                "child_of": {"element": "div", "class_name": "links"},
+            },
+        ),
+    ]
+
+
+@pytest.fixture(scope="class")
 def test_html():
     return """
     <!DOCTYPE html>
@@ -42,6 +60,12 @@ def test_html():
         <div class="nested">
             <p>Paragraph</p>
         </div>
+    </div>
+
+    <div class="links">
+        <a href="/home">Home</a>
+        <a href="/rules">Rules</a>
+        <a href="/faq">FAQ</a>
     </div>
 
     </body>
@@ -94,6 +118,20 @@ def test_rules_from_json_string(scraper, test_json):
 
     # Make sure that the scraped value is as expected.
     assert result["body"] == "Heading"
+
+
+def test_property_scraping(scraper, test_rules_for_properties):
+    # Make sure we are running a fresh instance.
+    scraper.reset()
+
+    scraper.add_rules(test_rules_for_properties)
+    result = scraper.scrape()
+
+    # Make sure that we find the links
+    assert result["links"] == ["/home", "/rules", "/faq"]
+
+    # Make sure that links are identical regardless of child of rule.
+    assert result["links"] == result["links2"]
 
 
 def test_rule_validation():
