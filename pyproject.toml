@@ -9,12 +9,16 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.11"
 beautifulsoup4 = "4.12.3"
+aiohttp = "^3.11.9"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.scripts]
+scraper = "examples.scraper:start"
+crawler = "examples.crawler:start"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
 coverage = "^7.6.8"
+pytest-asyncio = "^0.24.0"
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:tool.poetry.version"] # version location

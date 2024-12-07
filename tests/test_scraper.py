@@ -105,8 +105,8 @@ def test_scraping(scraper, test_rules):
         assert rule.target in result
 
     # Make sure that the scraped value is as expected.
-    assert result["title"] == "Heading"
-    assert result["body"] == "Paragraph"
+    assert result["title"] == ["Heading"]
+    assert result["body"] == ["Paragraph"]
 
 
 def test_rules_from_json_string(scraper, test_json):
@@ -117,7 +117,7 @@ def test_rules_from_json_string(scraper, test_json):
     result = scraper.scrape()
 
     # Make sure that the scraped value is as expected.
-    assert result["body"] == "Heading"
+    assert result["body"] == ["Heading"]
 
 
 def test_property_scraping(scraper, test_rules_for_properties):

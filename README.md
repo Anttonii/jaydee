@@ -1,17 +1,26 @@
 # Jaydee
 
-Scrape HTML documents using a .json file schema.
+Crawl websites and scrape HTML documents using a .json file schema.
 
 ## Installation
 
 Make sure that Jaydee is recognizable by poetry by adding it to your `pyproject.toml` and afterwards:
 
 ```bash
-poetry install
+$ poetry install
 ```
+
+Jaydee is not currently available through PIP.
 
 ## Usage
 
+More in-depth usage examples can be found in the directory `examples`.
+
+Crawling:
+```python
+```
+
+Scraping:
 ```python
 import requests
 
