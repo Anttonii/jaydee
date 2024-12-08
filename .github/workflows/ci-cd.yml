@@ -52,7 +52,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.12"
 
       - name: Check-out repository
         uses: actions/checkout@v3
@@ -67,18 +67,18 @@ jobs:
 
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        if: steps.release.outputs.released == 'true'
+        if: steps.release.outputs.released == 'true' && false
         with:
           repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
 
-      # - name: Test install from TestPyPI
-      #   if: steps.release.outputs.released == 'true'
-      #   run: |
-      #       pip install \
-      #       --index-url https://test.pypi.org/simple/ \
-      #       --extra-index-url https://pypi.org/simple \
-      #       jaydee
+      - name: Test install from TestPyPI
+        if: steps.release.outputs.released == 'true' && false
+        run: |
+            pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple \
+            jaydee
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
