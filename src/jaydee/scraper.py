@@ -431,7 +431,7 @@ class Scraper:
         """
         Resets the inner parser object back to the state of object construction.
 
-        Also clears the list of rules defined.
+        Also clears the list of defined rules.
         """
         self._parser = BeautifulSoup(self._document, DEFAULT_PARSER)
         self.rules = {}

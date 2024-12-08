@@ -1,23 +1,13 @@
-from jaydee import Scraper, ScraperRule, ScraperOptions
+from .scraper import Scraper, ScraperRule, ScraperOptions
+from . import utils
 
 import logging
 from dataclasses import dataclass
-import random
-from urllib.parse import urlparse
 
 from playwright.async_api import async_playwright
 
 # Setup the scraper specific logger
 logger = logging.getLogger("jd-crawler")
-
-# Mock user agent values to use randomly.
-DEFAULT_USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-]
 
 
 @dataclass(init=False)
@@ -44,14 +34,12 @@ class CrawlerOptions:
         headless=True,
         waitForSelector="",
         waitForIdle=False,
-        userAgents=DEFAULT_USER_AGENTS,
         scraperOptions=ScraperOptions(True),
     ):
         """Setup default values."""
         self._headless = headless
         self._waitForSelector = waitForSelector
         self._waitForIdle = waitForIdle
-        self._userAgents = userAgents
         self._scraperOptions = scraperOptions
 
 
@@ -78,7 +66,7 @@ class Crawler:
         child_of=None,
         options: CrawlerOptions = CrawlerOptions(),
     ):
-        if not self.__validate_url(initial_url):
+        if not utils.validate_url(initial_url):
             logger.error("Invalid URL passed to Crawler.")
 
         if rule is None:
@@ -88,12 +76,13 @@ class Crawler:
 
         self.options = options
 
-        self.base_url = self.__parse_base_url(initial_url)
+        self.base_url = utils.parse_base_url(initial_url)
         self.scraper = Scraper(options=self.options._scraperOptions).add_rules(
             self.rules
         )
 
         self._current_page = ""
+        self._current_result = {}
         self.on_proceed = callback
 
         # keep track of seen urls to avoid scraping/crawling them twice
@@ -116,48 +105,6 @@ class Crawler:
             )
         ]
 
-    def __parse_base_url(self, url: str) -> str:
-        """
-        Parses base part of the url.
-
-        For example given url https://example.com/foo/bar?id=1 return https://example.com
-
-        Args:
-            url: url to parse base url from.
-        Returns:
-            str: the base url of the given url.
-        """
-        parsed_url = urlparse(url)
-        return parsed_url.scheme + "://" + parsed_url.netloc
-
-    def __validate_url(self, url: str) -> bool:
-        """
-        Validates URL to see if it's valid.
-
-        Args:
-            url: url to validate
-        Returns:
-            bool: whether or not the url is valid.
-        """
-        try:
-            parsed_url = urlparse(url)
-            return all([parsed_url.scheme, parsed_url.netloc])
-        except AttributeError:
-            return False
-
-    def __get_random_user_agent(self) -> str | None:
-        """Returns a random user agent from list of defaults."""
-        if len(self.options._userAgents) == 0:
-            logger.warning(
-                "No user agents set, will default to Playwrights user agent."
-            )
-            return None
-
-        if len(self.options._userAgents) == 1:
-            logger.warning("It's suggested to use more than one user agent.")
-
-        return random.choice(self.options._userAgents)
-
     async def start(self):
         """
         Starts the crawling coroutine.
@@ -166,6 +113,8 @@ class Crawler:
 
         The crawler runs until it's URL queue is empty and yields links of interest. When the URL queue is empty, Crawler
         invokes it's callback function `on_proceed` which should include any possible additions to the URL queue.
+
+        yields a list of urls whenever the crawler has succesfully scraped a list of links.
         """
 
         # Start running
@@ -175,12 +124,11 @@ class Crawler:
             """Used for fetching HTML documents with session from given URL."""
             logger.info(f"Requesting URL: {url}")
 
-            if not self.__validate_url(url):
+            if not utils.validate_url(url):
                 logger.warning(f"Attempted to fetch an invalid URL: {url}, skipping.")
                 return None
 
             page = await browser.new_page()
-
             response = await page.goto(url)
 
             logger.info(f"retrieved with response: {response.status}")
@@ -211,9 +159,12 @@ class Crawler:
             browser = await pw.chromium.launch(headless=self.options._headless)
 
             while self.url_queue and self.running:
+                self.current_result = {}
+                self.current_page = ""
+
                 # Create browser context with a random user agent.
                 context = await browser.new_context(
-                    user_agent=self.__get_random_user_agent(),
+                    user_agent=utils.get_random_user_agent(),
                     viewport={"width": 1920, "height": 1080},
                 )
 
@@ -225,10 +176,11 @@ class Crawler:
                 if html is None:
                     continue
 
-                self._current_page = html
                 self.scraper.document = html
+                self.current_page = html
 
                 result = self.scraper.scrape()
+                self.current_result = result
 
                 # If there are no links found, stop.
                 if len(result["links"]) == 0:
@@ -240,9 +192,7 @@ class Crawler:
                 # Incases where href doesn't have the base url, add it to the URL.
                 full_urls = list(
                     map(
-                        lambda x: self.base_url + x
-                        if not self.__validate_url(x)
-                        else x,
+                        lambda x: self.base_url + x if not utils.validate_url(x) else x,
                         result["links"],
                     )
                 )
@@ -253,7 +203,7 @@ class Crawler:
                 # proceed according to callback or if no new urls are added
                 # to the queue, terminate.
                 if not self.url_queue and self.on_proceed is not None:
-                    self.on_proceed(self)
+                    await self.on_proceed(self)
 
             # Clean up
             await browser.close()
@@ -271,6 +221,25 @@ class Crawler:
         self.seen_urls.add(url)
         self.url_queue.append(url)
 
+    def get_links(self) -> list[str]:
+        """Returns list of links if we currently have a result otherwise an empty list."""
+        if "links" in self.current_result:
+            return self.current_result["links"]
+        else:
+            return []
+
     @property
     def current_page(self):
         return self._current_page
+
+    @current_page.setter
+    def current_page(self, val):
+        self._current_page = val
+
+    @property
+    def current_result(self):
+        return self._current_result
+
+    @current_result.setter
+    def current_result(self, val):
+        self._current_result = val

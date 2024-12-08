@@ -5,6 +5,11 @@
 ### Additions
 
 - Initial Playwright support.
+- Multithreaded web scraping.
+
+### Changes
+
+- Moved some shared functionality over to `utils.py`
 
 ## v0.1.1 (7/12/2024)
 

@@ -5,3 +5,4 @@ __version__ = version("jaydee")
 
 from .scraper import Scraper, ScraperRule, ScraperException, ScraperOptions  # noqa
 from .crawler import Crawler, CrawlerOptions  # noqa
+from .webscraper import WebScraper, WebScraperOptions  # noqa
