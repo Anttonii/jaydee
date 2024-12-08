@@ -1,15 +1,16 @@
 [tool.poetry]
 name = "jaydee"
-version = "1.0.0"
+version = "0.1.2"
 description = "Scrape websites with a given schema."
 authors = ["Anttoni Koivu"]
-license = "None"
+license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
 beautifulsoup4 = "4.12.3"
-aiohttp = "^3.11.9"
+playwright = "^1.49.0"
+html5lib = "^1.1"
 
 [tool.poetry.scripts]
 scraper = "examples.scraper:start"

@@ -4,6 +4,15 @@ Crawl websites and scrape HTML documents using a .json file schema.
 
 ## Installation
 
+Make sure you have playwright installed with:
+
+```bash
+$ pip install playwright
+$ playwright install
+```
+
+and then install Jaydee:
+
 ```bash
 $ pip install jaydee
 ```

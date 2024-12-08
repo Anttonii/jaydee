@@ -134,8 +134,9 @@ def test_property_scraping(scraper, test_rules_for_properties):
     assert result["links"] == result["links2"]
 
 
-def test_rule_validation():
+def test_rule_validation(scraper):
     # Assert that an exception is raised when a rule is invalid
+    scraper.reset()
     with pytest.raises(ValueError, match="Invalid HTML"):
         bad_rules = [  # noqa: F841
             ScraperRule(
@@ -143,6 +144,7 @@ def test_rule_validation():
                 attributes={"element": "dib", "class_name": "content"},
             )
         ]
+        scraper.add_rules(bad_rules)
 
 
 def test_target_validation():

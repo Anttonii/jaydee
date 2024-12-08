@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 import logging
 import os
@@ -7,6 +8,9 @@ from bs4 import BeautifulSoup
 # Setup the scraper specific logger
 logger = logging.getLogger("jd-scraper")
 
+# The default parser to use for scraping data.
+DEFAULT_PARSER = "html5lib"
+
 # Valid HTML elements. Used for validating rules.
 VALID_ELEMENTS = [
     "a",
@@ -14,6 +18,7 @@ VALID_ELEMENTS = [
     "acronym",
     "address",
     "area",
+    "article",
     "b",
     "base",
     "bdo",
@@ -56,6 +61,7 @@ VALID_ELEMENTS = [
     "li",
     "link",
     "map",
+    "main",
     "meta",
     "noscript",
     "object",
@@ -88,6 +94,15 @@ VALID_ELEMENTS = [
     "ul",
     "var",
 ]
+
+
+@dataclass(init=False)
+class ScraperOptions:
+    # Whether or not standardized HTML tags are allowed.
+    _allow_unkown_tags: bool
+
+    def __init__(self, allow_unkown_tags: bool = False):
+        self._allow_unkown_tags = allow_unkown_tags
 
 
 class ScraperRule:
@@ -164,12 +179,8 @@ class ScraperRule:
             or "property" in attributes
         ):
             raise ValueError(
-                "Attributes provide no valid scraping of the DOM and are thus invalid.\nMake sure to have at least defined an element or a class for scraping."
+                "Attributes provide no valid scraping of the DOM and are thus invalid.\nMake sure to have at least defined an element or a class name for scraping."
             )
-
-        if "element" in attributes:
-            if attributes["element"] not in VALID_ELEMENTS:
-                raise ValueError(f"Invalid HTML element: {attributes['element']}")
 
         # Validate children recursively
         if "child_of" in attributes and attributes["child_of"]:
@@ -204,17 +215,24 @@ class Scraper:
         html_doc: an optional html document to scrape data from. if left empty, the scraper
                     instance must be initialized later with an html doc before any scraping.
         rules: an optional list of scraper rules to initialize the scraper with.
+        options: optionally add your own scraper options.
     """
 
-    def __init__(self, html_doc: str = None, rules: list[ScraperRule] = None):
+    def __init__(
+        self,
+        html_doc: str = None,
+        rules: list[ScraperRule] = None,
+        options: ScraperOptions = ScraperOptions(),
+    ):
         if html_doc is None:
             self._document = None
             self._parser = None
         else:
             self._document = html_doc
-            self._parser = BeautifulSoup(html_doc, "html.parser")
+            self._parser = BeautifulSoup(html_doc, DEFAULT_PARSER)
 
         self.rules = {}
+        self.options = options
 
         if rules is not None:
             self.add_rules(rules)
@@ -226,7 +244,7 @@ class Scraper:
     @document.setter
     def document(self, val):
         self._document = val
-        self._parser = BeautifulSoup(val, "html.parser")
+        self._parser = BeautifulSoup(val, DEFAULT_PARSER)
 
     def add_rule(self, rule: ScraperRule):
         """
@@ -246,7 +264,22 @@ class Scraper:
                 rule,
             )
 
+        self.__validate_html_tag(rule.attributes)
         self.rules[rule.target] = rule
+
+    def __validate_html_tag(self, attributes):
+        """Check for valid HTML element."""
+        if "element" in attributes:
+            if (
+                attributes["element"] not in VALID_ELEMENTS
+                and not self.options._allow_unkown_tags
+            ):
+                raise ValueError(
+                    f"Invalid HTML element: {attributes['element']}, this error can be omitted by changing allow_unknown_tags in scraper options."
+                )
+
+        if "child_of" in attributes and attributes["child_of"]:
+            self.__validate_html_tag(attributes["child_of"])
 
     def add_rules(self, rules: list[ScraperRule]):
         """
@@ -314,10 +347,10 @@ class Scraper:
             """
             attrs = {}
 
-            if "id" in attribs:
+            if "id" in attribs and attribs["id"]:
                 attrs["id"] = attribs["id"]
 
-            if "class_name" in attribs:
+            if "class_name" in attribs and attribs["class_name"]:
                 attrs["class"] = attribs["class_name"]
 
             return attrs
@@ -365,7 +398,7 @@ class Scraper:
                 else:
                     curr_target = curr_target.find_all(attrs=attrs)
 
-                curr_target = BeautifulSoup(str(curr_target), "html.parser")
+                curr_target = BeautifulSoup(str(curr_target), DEFAULT_PARSER)
 
             if not curr_target:
                 logger.warning(
@@ -375,8 +408,9 @@ class Scraper:
 
             attrs = build_attribs(rule.attributes)
 
-            if rule["element"]:
-                data = curr_target.find_all(rule["element"], attrs=attrs)
+            element = rule["element"]
+            if element:
+                data = curr_target.find_all(element, attrs=attrs)
             else:
                 data = curr_target.find_all(attrs=attrs)
 
@@ -385,9 +419,8 @@ class Scraper:
                 continue
 
             # Check first if we want to parse properties instead of text.
-            if rule["property"]:
-                property = rule["property"]
-
+            property = rule["property"]
+            if property:
                 result[target] = [el[property] for el in data if el.has_attr(property)]
             else:
                 result[target] = [el.get_text().strip() for el in data]
@@ -400,7 +433,7 @@ class Scraper:
 
         Also clears the list of rules defined.
         """
-        self._parser = BeautifulSoup(self._document, "html.parser")
+        self._parser = BeautifulSoup(self._document, DEFAULT_PARSER)
         self.rules = {}
 
 
