@@ -17,6 +17,8 @@ class Crawler:
         initial_url: the url starting point of the crawling
         callback: a callback function that determines what the crawler should do once it's done with it's URL queue.
         child_of: an optional child of attribute for where to look for the links that are to be crawled.
+
+    The callback is called
     """
 
     def __init__(
@@ -154,7 +156,7 @@ class Crawler:
                 # We have yielded first patch of links
                 # proceed according to callback or if no new urls are added
                 # to the queue, terminate.
-                if self.on_proceed is not None:
+                if not self.url_queue and self.on_proceed is not None:
                     self.on_proceed(self)
 
     def stop(self):

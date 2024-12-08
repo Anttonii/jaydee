@@ -4,13 +4,9 @@ Crawl websites and scrape HTML documents using a .json file schema.
 
 ## Installation
 
-Make sure that Jaydee is recognizable by poetry by adding it to your `pyproject.toml` and afterwards:
-
 ```bash
-$ poetry install
+$ pip install jaydee
 ```
-
-Jaydee is not currently available through PIP.
 
 ## Usage
 
@@ -18,6 +14,29 @@ More in-depth usage examples can be found in the directory `examples`.
 
 Crawling:
 ```python
+import asyncio
+
+from src.jaydee.crawler import Crawler
+
+
+async def main():
+    # on_proceed is called once the crawlers url queue is empty.
+    # defining it is optional.
+    def on_proceed(crawler):
+        # Add pages after crawler has extracted links.
+        crawler.add_url("https://www.example.com/foo")
+
+    crawler = Crawler(
+        "https://www.example.com",
+        on_proceed,
+    )
+
+    async for link in crawler.start():
+        print(link)
+
+
+def start():
+    asyncio.run(main())
 ```
 
 Scraping:

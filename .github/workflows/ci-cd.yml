@@ -42,7 +42,7 @@ jobs:
 
     # Only run this job if new work is pushed to "main"
     # currently set to false since we don't need to deploy to anywhere.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && false
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     # Set up operating system
     runs-on: ubuntu-latest
@@ -72,13 +72,13 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
 
-      - name: Test install from TestPyPI
-        if: steps.release.outputs.released == 'true'
-        run: |
-            pip install \
-            --index-url https://test.pypi.org/simple/ \
-            --extra-index-url https://pypi.org/simple \
-            jaydee
+      # - name: Test install from TestPyPI
+      #   if: steps.release.outputs.released == 'true'
+      #   run: |
+      #       pip install \
+      #       --index-url https://test.pypi.org/simple/ \
+      #       --extra-index-url https://pypi.org/simple \
+      #       jaydee
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
