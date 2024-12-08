@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jaydee"
-version = "1.0.0"
+version = "0.1.0"
 description = "Scrape websites with a given schema."
 authors = ["Anttoni Koivu"]
 license = "None"
