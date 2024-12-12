@@ -3,6 +3,7 @@ from . import utils
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 
 from playwright.async_api import async_playwright
 
@@ -29,18 +30,23 @@ class CrawlerOptions:
     # Options for the base scraper
     _scraperOptions: ScraperOptions
 
+    # Whether or not the crawler only stays within it's base URLs domain.
+    _strict: bool
+
     def __init__(
         self,
         headless=True,
-        waitForSelector="",
+        waitForSelector=None,
         waitForIdle=False,
         scraperOptions=ScraperOptions(True),
+        strict=True,
     ):
         """Setup default values."""
         self._headless = headless
         self._waitForSelector = waitForSelector
         self._waitForIdle = waitForIdle
         self._scraperOptions = scraperOptions
+        self._strict = strict
 
 
 class Crawler:
@@ -131,29 +137,35 @@ class Crawler:
             page = await browser.new_page()
             response = await page.goto(url)
 
-            logger.info(f"retrieved with response: {response.status}")
+            logger.info(f"{url} retrieved with response: {response.status}")
 
-            if response.status != 200:
+            metadata = {
+                "time": datetime.today().strftime("%Y-%m-%d %H:%M:%S"),
+                "url": url,
+                "base_url": utils.parse_base_url(url),
+                "domain": utils.parse_domain(url),
+                "status": response.status,
+            }
+
+            if not response.ok:
                 logger.warning(
-                    f"Failed to fetch {url} with status code: {response.status}, stopping.."
+                    f"Failed to fetch {url} with status code: {response.status}, skipping.."
                 )
-                self.running = False
-                return
+                await page.close()
+                return {"doc": None, "metadata": metadata}
 
             # If wait for idle is enabled, wait for network to be idle for half a second.
+            # Takes precedence over waiting for a selector.
             if self.options._waitForIdle is not None:
                 await page.wait_for_load_state("networkidle")
             # Alternatively a selector can be used.
-            elif (
-                self.options._waitForSelector is not None
-                and self.options._waitForSelector != ""
-            ):
+            elif self.options._waitForSelector is not None:
                 await page.wait_for_selector(self.options._waitForSelector)
 
             html = await page.content()
             await page.close()
 
-            return html
+            return {"doc": html, "metadata": metadata}
 
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=self.options._headless)
@@ -169,24 +181,24 @@ class Crawler:
                 )
 
                 url = self.url_queue.pop()
-                html = await fetch(context, url)
+                fetch_res = await fetch(context, url)
 
-                # If HTML is none, continue.
-                # fetch() takes care of logging information.
-                if html is None:
+                if fetch_res is None:
                     continue
 
-                self.scraper.document = html
-                self.current_page = html
+                # If HTML document is none, continue.
+                # fetch() takes care of logging information.
+                if fetch_res["doc"] is None:
+                    yield {"metadata": fetch_res["metadata"]}
+                    continue
 
-                result = self.scraper.scrape()
-                self.current_result = result
+                self.current_page = fetch_res["doc"]
+                result = self.scraper.scrape(self.current_page)
 
-                # If there are no links found, stop.
+                # If there are no links found, skip.
                 if len(result["links"]) == 0:
-                    logger.info("No links were found, stopping..")
-                    self.stop()
-                    yield []
+                    logger.info(f"No links were found for url: {url}")
+                    yield {"metadata": fetch_res["metadata"]}
                     continue
 
                 # Incases where href doesn't have the base url, add it to the URL.
@@ -197,7 +209,12 @@ class Crawler:
                     )
                 )
 
-                yield full_urls
+                self.current_result = {
+                    "links": full_urls,
+                    "metadata": fetch_res["metadata"],
+                }
+
+                yield self.current_result
 
                 # We have yielded first patch of links
                 # proceed according to callback or if no new urls are added
@@ -214,6 +231,11 @@ class Crawler:
 
     def add_url(self, url: str):
         """Adds a given url to the queue."""
+        if self.options._strict:
+            if utils.parse_base_url(url) != self.base_url:
+                logger.info(f"URL {url} outside of the domain of base URL, skipping..")
+                return
+
         if url in self.seen_urls:
             logger.info(f"URL {url} already crawled, will be skipped.")
             return

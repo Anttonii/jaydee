@@ -12,25 +12,8 @@ def valid_url():
 
 
 @pytest.fixture
-def invalid_url():
-    return "htp:/invalid-url"
-
-
-@pytest.fixture
 def mock_child_of():
     return None  # Replace with a mock or actual object if needed
-
-
-def test_validate_url(valid_url, invalid_url):
-    crawler = Crawler(valid_url, None)
-    assert crawler._Crawler__validate_url(valid_url) is True
-    assert crawler._Crawler__validate_url(invalid_url) is False
-
-
-def test_parse_base_url(valid_url):
-    crawler = Crawler(valid_url, None)
-    base_url = crawler._Crawler__parse_base_url(valid_url)
-    assert base_url == "https://example.com"
 
 
 def test_add_url(valid_url):

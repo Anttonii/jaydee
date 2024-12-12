@@ -1,11 +1,13 @@
 # Changelog
 
-## v0.1.2 (8/12/2024)
+## v0.1.2 (12/12/2024)
 
 ### Additions
 
 - Initial Playwright support.
 - Multithreaded web scraping.
+- `strict` crawling that keeps the crawler within the base URLs domain.
+- Crawler now returns metadata when crawling.
 
 ### Changes
 

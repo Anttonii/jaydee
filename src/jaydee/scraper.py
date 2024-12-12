@@ -237,15 +237,6 @@ class Scraper:
         if rules is not None:
             self.add_rules(rules)
 
-    @property
-    def document(self):
-        return self._document
-
-    @document.setter
-    def document(self, val):
-        self._document = val
-        self._parser = BeautifulSoup(val, DEFAULT_PARSER)
-
     def add_rule(self, rule: ScraperRule):
         """
         Utility function that adds a rule to the scraper.
@@ -330,11 +321,14 @@ class Scraper:
 
         return self
 
-    def scrape(self) -> dict:
+    def scrape(self, document: str = None) -> dict:
         """
         Scrapes the given HTML document with the provided rule set.
 
         TODO: Improve error handling
+
+        Args:
+            document: optionally supply document that then override the current document.
 
         Returns:
             Dictionary with keys (rules targets) that map to the extracted properties or text.
@@ -354,6 +348,9 @@ class Scraper:
                 attrs["class"] = attribs["class_name"]
 
             return attrs
+
+        if document is not None:
+            self.document = document
 
         result = {}
 
@@ -435,6 +432,15 @@ class Scraper:
         """
         self._parser = BeautifulSoup(self._document, DEFAULT_PARSER)
         self.rules = {}
+
+    @property
+    def document(self):
+        return self._document
+
+    @document.setter
+    def document(self, val):
+        self._document = val
+        self._parser = BeautifulSoup(val, DEFAULT_PARSER)
 
 
 class ScraperException(Exception):

@@ -30,6 +30,19 @@ def parse_base_url(url: str) -> str:
     return parsed_url.scheme + "://" + parsed_url.netloc
 
 
+def parse_domain(url: str) -> str:
+    """
+    Parses domain name from an URL.
+
+    Args:
+        url: url to parse domain from.
+    Returns:
+        str: the domain of the given url.
+    """
+    parsed_url = urlparse(url)
+    return parsed_url.netloc
+
+
 def validate_url(url: str) -> bool:
     """
     Validates URL to see if it's valid.

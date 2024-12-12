@@ -52,12 +52,18 @@ class WebScraper:
         self.url_queue = urls
         self.scraper = scraper
         self.options = options
-        self.results = []
+        self.current_result = {}
 
-    async def start(self):
+    async def scrape_pages(self):
         """
         Starts the web scraping coroutine.
         """
+        self.current_result = {
+            "results": [],
+            "success": 0,
+            "failures": 0,
+        }
+
         if not self.url_queue:
             logger.error("No URLs in queue, unable to web scrape.")
             return
@@ -90,8 +96,9 @@ class WebScraper:
                     tasks.append(
                         self.__scrape_page_semaphore(context, semaphore, url, scraper)
                     )
+
                 await asyncio.gather(*tasks)
-                print(self.results)
+                return self.current_result
             except Exception as e:
                 logger.error("Error in the webscraper start coroutine:")
                 logger.error(e)
@@ -119,17 +126,20 @@ class WebScraper:
             await page.goto(url, timeout=self.options._timeout * 1000)
             content = await page.content()
 
-            scraper.document = content
-            result = scraper.scrape()
-            self.results.append(result)
+            result = scraper.scrape(content)
+
+            self.current_result["results"].append(result)
+            self.current_result["success"] += 1
         except Exception as e:
+            self.current_result["failures"] += 1
+
             logger.error(f"Error with scraping url: {url}")
             logger.error(e)
         finally:
             await page.close()
             return {}
 
-    async def scrape_page(self, url):
+    async def scrape_page(self, url: str):
         """
         Scrapes a web page using the base scraper instance.
 
@@ -152,8 +162,7 @@ class WebScraper:
                 await page.goto(url, timeout=self.options._timeout * 1000)
                 html = await page.content()
 
-                self.scraper.document = html
-                result = self.scraper.scrape()
+                result = self.scraper.scrape(html)
                 return result
             except Exception as e:
                 logger.error(f"Error with scraping url: {url}")

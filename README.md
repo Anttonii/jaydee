@@ -11,7 +11,9 @@ $ pip install playwright
 $ playwright install
 ```
 
-and then install Jaydee:
+Currently Jaydee runs on chromium so make sure that playwright at least installs that as a webdriver.
+
+Afterwards install Jaydee from PIP:
 
 ```bash
 $ pip install jaydee
