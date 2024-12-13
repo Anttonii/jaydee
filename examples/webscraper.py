@@ -9,10 +9,10 @@ async def main():
     scraper = Scraper().add_rules(
         [
             ScraperRule(
-                target="title",
+                target="ppg",
                 attributes={
-                    "element": "h1",
-                    "child_of": {"element": "div", "class_name": "pane-node-title"},
+                    "element": "p",
+                    "class_name": "PlayerSummary_playerStatValue___EDg_",
                 },
             )
         ]
@@ -21,25 +21,26 @@ async def main():
     webscraper = WebScraper(scraper=scraper)
 
     async def on_proceed(crawler):
-        nonlocal webscraper
-        links = crawler.get_links()
+        crawler.stop()
+
+    options = CrawlerOptions(headless=True, waitForText="5-9 ft")
+    crawler = Crawler(
+        "https://www.nba.com/stats/players/shooting",
+        on_proceed,
+        options=options,
+        rule=ScraperRule(
+            target="links",
+            attributes={"element": "a", "child_of": {"element": "tr"}},
+        ),
+    )
+
+    async for result in crawler.start():
+        links = result["links"]
+        links = list(map(lambda x: x[0] % 2 == 0, enumerate(links)))
 
         webscraper.add_urls(links)
         result = await webscraper.scrape_pages()
         print(result)
-
-        crawler.stop()
-
-    options = CrawlerOptions(headless=True)
-    crawler = Crawler(
-        "https://www.jobly.fi/tyopaikat/terveydenhuolto",
-        options=options,
-        callback=on_proceed,
-        child_of={"element": "div", "class_name": "job__logo"},
-    )
-
-    async for link in crawler.start():
-        print(link)
 
 
 def start():

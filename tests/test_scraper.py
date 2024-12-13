@@ -1,6 +1,6 @@
 import pytest
 
-from jaydee import Scraper, ScraperRule
+from jaydee import Scraper, ScraperRule, ScraperOptions
 
 
 @pytest.fixture(scope="class")
@@ -23,6 +23,16 @@ def test_rules():
                     },
                 },
             },
+        ),
+    ]
+
+
+@pytest.fixture(scope="class")
+def test_rules_for_escapes():
+    return [
+        ScraperRule(
+            target="title",
+            attributes={"element": "h2", "class_name": "quote"},
         ),
     ]
 
@@ -57,6 +67,7 @@ def test_html():
     </div>
 
     <div class="container">
+        <h2 class="quote">'quoted'</h2>
         <div class="nested">
             <p>Paragraph</p>
         </div>
@@ -156,3 +167,18 @@ def test_target_validation():
                 attributes={"element": "div", "class_name": "content"},
             )
         ]
+
+
+def test_adding_escapes(scraper, test_rules_for_escapes):
+    # Assert that escapes are replaced with double escapes
+    options = ScraperOptions(add_escapes=True)
+
+    scraper.reset()
+    scraper.options = options
+
+    scraper.add_rules(test_rules_for_escapes)
+    result = scraper.scrape()
+
+    assert result["title"] == ["''quoted''"]
+
+    scraper.options = ScraperOptions()

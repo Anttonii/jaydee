@@ -21,19 +21,20 @@ $ pip install jaydee
 
 ## Usage
 
-More in-depth usage examples can be found in the directory `examples`.
+More in-depth usage examples can be found in the `examples` directory.
 
 Crawling:
 ```python
 import asyncio
 
-from src.jaydee.crawler import Crawler
+from jaydee.crawler import Crawler
 
 
 async def main():
     # on_proceed is called once the crawlers url queue is empty.
     def on_proceed(crawler):
         # Add pages after crawler has extracted links.
+        # this page is only added once since crawler keeps track of pages it has visited.
         crawler.add_url("https://www.example.com/foo")
 
     crawler = Crawler(
@@ -41,15 +42,16 @@ async def main():
         on_proceed,
     )
 
-    async for link in crawler.start():
-        print(link)
+    async for result in crawler.start():
+        print(f"Metadata: {result["metadata"]}")
+        print(f"Links found: {result["links"]}")
 
 
 def start():
     asyncio.run(main())
 ```
 
-Scraping:
+Scraping example with requests:
 ```python
 import requests
 

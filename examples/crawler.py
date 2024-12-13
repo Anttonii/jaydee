@@ -19,8 +19,9 @@ async def main():
         child_of={"element": "article"},
     )
 
-    async for link in crawler.start():
-        print(link)
+    async for result in crawler.start():
+        print(f"Metadata: {result["metadata"]}")
+        print(f"Links found: {result["links"]}")
 
 
 def start():

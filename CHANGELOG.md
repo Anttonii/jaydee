@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.3 ()
+
+### Additions
+
+- Webscraper can now also wait for selectors/states/text.
+- Webscraper keeps track of scraping results.
+- Scraper has an option to add escape posix sequences to apostrophes and quotes.
+- Crawler can wait for some text to be visible before parsing.
+- Setting `id` or `class_name` as empty string looks for elements that have no id or class set.
+- Added support for selectors in the scraper.
+
+### Changes
+
+- Refactored examples
+- Added tests
+
 ## v0.1.2 (12/12/2024)
 
 ### Additions

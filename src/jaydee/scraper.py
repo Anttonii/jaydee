@@ -99,10 +99,18 @@ VALID_ELEMENTS = [
 @dataclass(init=False)
 class ScraperOptions:
     # Whether or not standardized HTML tags are allowed.
-    _allow_unkown_tags: bool
+    _allow_unknown_tags: bool
 
-    def __init__(self, allow_unkown_tags: bool = False):
-        self._allow_unkown_tags = allow_unkown_tags
+    # Replaces apostrophes and quotes with escape string syntax
+    _add_escapes: bool
+
+    def __init__(
+        self,
+        allow_unknown_tags: bool = False,
+        add_escapes: bool = False,
+    ):
+        self._allow_unknown_tags = allow_unknown_tags
+        self._add_escapes = add_escapes
 
 
 class ScraperRule:
@@ -126,16 +134,19 @@ class ScraperRule:
     def __init__(
         self,
         target: str,
-        attributes: dict[str, str | dict],
+        select: str | None = None,
+        attributes: dict[str, str | dict] | None = None,
     ):
         """Constructor"""
         # First validate the rule.
-        self.__validate_rule(attributes)
+        if attributes is not None:
+            self.__validate_rule(attributes)
 
         if not target or target == "":
-            raise ValueError("Target can not be an emptry string.")
+            raise ValueError("Target can not be an empty string.")
 
         self._target = target
+        self._select = select
 
         self._attribs = {
             "id": None,
@@ -145,7 +156,10 @@ class ScraperRule:
             "child_of": None,
         }
 
-        self._attribs.update(attributes)
+        if attributes is not None:
+            self._attribs.update(attributes)
+        else:
+            self._attribs = None
 
     def __getitem__(self, key: str):
         """
@@ -202,6 +216,7 @@ class ScraperRule:
                 f" - with class name: {self._attribs['class_name']}",
                 f" - with id: {self._attribs['id']}",
                 f" - with child rules: {self._attribs['child_of']}",
+                f" - or with select: {self._select}",
             ]
         )
 
@@ -209,7 +224,7 @@ class ScraperRule:
 class Scraper:
     """
     Scraper takes in the inner HTML document and a list of rules that determine
-    what data to scrape from the HTML docuemnt.
+    what data to scrape from the HTML document.
 
     Args:
         html_doc: an optional html document to scrape data from. if left empty, the scraper
@@ -232,7 +247,7 @@ class Scraper:
             self._parser = BeautifulSoup(html_doc, DEFAULT_PARSER)
 
         self.rules = {}
-        self.options = options
+        self._options = options
 
         if rules is not None:
             self.add_rules(rules)
@@ -255,7 +270,8 @@ class Scraper:
                 rule,
             )
 
-        self.__validate_html_tag(rule.attributes)
+        if rule.attributes is not None:
+            self.__validate_html_tag(rule.attributes)
         self.rules[rule.target] = rule
 
     def __validate_html_tag(self, attributes):
@@ -263,7 +279,7 @@ class Scraper:
         if "element" in attributes:
             if (
                 attributes["element"] not in VALID_ELEMENTS
-                and not self.options._allow_unkown_tags
+                and not self._options._allow_unknown_tags
             ):
                 raise ValueError(
                     f"Invalid HTML element: {attributes['element']}, this error can be omitted by changing allow_unknown_tags in scraper options."
@@ -325,8 +341,6 @@ class Scraper:
         """
         Scrapes the given HTML document with the provided rule set.
 
-        TODO: Improve error handling
-
         Args:
             document: optionally supply document that then override the current document.
 
@@ -341,11 +355,18 @@ class Scraper:
             """
             attrs = {}
 
-            if "id" in attribs and attribs["id"]:
-                attrs["id"] = attribs["id"]
+            # If id or class is empty, look for elements that don't have them set.
+            if "id" in attribs:
+                if attribs["id"] is not None and attribs["id"] != "":
+                    attrs["id"] = attribs["id"].split(" ")
+                else:
+                    attrs["id"] = None
 
-            if "class_name" in attribs and attribs["class_name"]:
-                attrs["class"] = attribs["class_name"]
+            if "class_name" in attribs:
+                if attribs["class_name"] is not None and attribs["class_name"] != "":
+                    attrs["class"] = attribs["class_name"].split(" ")
+                else:
+                    attrs["class"] = None
 
             return attrs
 
@@ -364,6 +385,12 @@ class Scraper:
 
         for target, rule in self.rules.items():
             result[target] = []
+
+            if rule._select is not None:
+                result[target] = [
+                    tag.get_text() for tag in self._parser.select(rule._select)
+                ]
+                continue
 
             curr = rule["child_of"]
             child_rules = []
@@ -421,6 +448,10 @@ class Scraper:
                 result[target] = [el[property] for el in data if el.has_attr(property)]
             else:
                 result[target] = [el.get_text().strip() for el in data]
+                if self._options._add_escapes:
+                    result[target] = list(
+                        map(lambda x: self.__add_escapes(x), result[target])
+                    )
 
         return result
 
@@ -433,6 +464,12 @@ class Scraper:
         self._parser = BeautifulSoup(self._document, DEFAULT_PARSER)
         self.rules = {}
 
+    def __add_escapes(self, text: str) -> str:
+        """Adds escapes to single apostrophes"""
+        text = text.replace("'", "''")
+        text = text.replace('"', '""')
+        return text
+
     @property
     def document(self):
         return self._document
@@ -441,6 +478,14 @@ class Scraper:
     def document(self, val):
         self._document = val
         self._parser = BeautifulSoup(val, DEFAULT_PARSER)
+
+    @property
+    def options(self):
+        return self._options
+
+    @options.setter
+    def options(self, val):
+        self._options = val
 
 
 class ScraperException(Exception):

@@ -69,3 +69,12 @@ def get_random_user_agent() -> str | None:
         logger.warning("It's suggested to use more than one user agent.")
 
     return random.choice(DEFAULT_USER_AGENTS)
+
+
+def get_chrome_arguments() -> list[str]:
+    """Returns chrome arguments optimized for web scraping."""
+    return [
+        "--disable-features=Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider,CalculateNativeWinOcclusion,InterestFeedContentSuggestions,CertificateTransparencyComponentUpdater,AutofillServerCommunication,PrivacySandboxSettings4,AutomationControlled",
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+    ]
