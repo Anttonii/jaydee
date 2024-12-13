@@ -5,6 +5,7 @@
 ### Hotfix:
 
 - Faulty scraper attribute handling.
+- CD publishing
 
 ## v0.1.3 (13/12/2024)
 
