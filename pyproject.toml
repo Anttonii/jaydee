@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "jaydee"
-version = "0.1.3a"
+version = "0.1.4"
 description = "Crawl and scrape websites with a given .json schema."
 authors = ["Anttoni Koivu"]
 license = "MIT"
