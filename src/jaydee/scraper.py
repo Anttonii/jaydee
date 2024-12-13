@@ -158,8 +158,6 @@ class ScraperRule:
 
         if attributes is not None:
             self._attribs.update(attributes)
-        else:
-            self._attribs = None
 
     def __getitem__(self, key: str):
         """
@@ -356,14 +354,14 @@ class Scraper:
             attrs = {}
 
             # If id or class is empty, look for elements that don't have them set.
-            if "id" in attribs:
-                if attribs["id"] is not None and attribs["id"] != "":
+            if "id" in attribs and attribs["id"]:
+                if attribs["id"] != "":
                     attrs["id"] = attribs["id"].split(" ")
                 else:
                     attrs["id"] = None
 
-            if "class_name" in attribs:
-                if attribs["class_name"] is not None and attribs["class_name"] != "":
+            if "class_name" in attribs and attribs["class_name"]:
+                if attribs["class_name"] != "":
                     attrs["class"] = attribs["class_name"].split(" ")
                 else:
                     attrs["class"] = None
@@ -440,6 +438,7 @@ class Scraper:
 
             if len(data) == 0:
                 logger.warning(f"No data loaded for rule: {rule}")
+                result[target] = []
                 continue
 
             # Check first if we want to parse properties instead of text.

@@ -1,6 +1,12 @@
 # Changelog
 
-## v0.1.3 ()
+## v0.1.3a (13/12/2024)
+
+### Hotfix:
+
+- Faulty scraper attribute handling.
+
+## v0.1.3 (13/12/2024)
 
 ### Additions
 

@@ -176,6 +176,10 @@ class Crawler:
                 ).to_be_visible()
 
             html = await page.content()
+
+            # Add HTML to the metadata
+            metadata.update({"content": html})
+
             await page.close()
 
             return {"doc": html, "metadata": metadata}
