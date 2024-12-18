@@ -12,7 +12,7 @@ class MultithreadOptions:
     def __init__(
         self,
         pool_size: int = 2,
-        max_concurrent_tasks: int = 20,
+        max_concurrent_tasks: int = 4,
     ):
         self._pool_size = pool_size
         self._max_concurrent_tasks = max_concurrent_tasks

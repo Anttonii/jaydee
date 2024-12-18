@@ -1,6 +1,12 @@
 # Changelog
 
-## v0.1.8 (18/12/204)
+## v0.1.9 (18/12/2024)
+
+### Fixes:
+
+- Webscraper now properly creates a new browser instance for every thread within it's thread pool.
+
+## v0.1.8 (18/12/2024)
 
 ### Fixes:
 

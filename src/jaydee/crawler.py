@@ -167,7 +167,7 @@ class Crawler:
                 if not self.url_queue and self.on_proceed is not None:
                     await self.on_proceed(self)
 
-            await webscraper.close()
+            await webscraper.quit()
         else:
             async with async_playwright() as pw:
                 browser = await pw.chromium.launch(

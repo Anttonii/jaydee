@@ -11,6 +11,57 @@ from playwright.async_api import async_playwright
 logger = logging.getLogger("jd-webscraper")
 
 
+class BrowserInstance:
+    def __init__(self, scraper, max_concurrent_tasks, wait_for_options):
+        self.scraper = scraper
+        self.max_concurrent_tasks = max_concurrent_tasks
+        self.semaphore = asyncio.Semaphore(self.max_concurrent_tasks)
+        self.wait_for_options = wait_for_options
+
+        self.pw_context = None
+        self.browser = None
+        self.browser_context = None
+
+    async def setup(self):
+        """Sets up the browser instance"""
+        self.pw_context = await async_playwright().start()
+        self.browser = await self.pw_context.chromium.launch(headless=True)
+
+        self.browser_context = await self.browser.new_context(
+            user_agent=utils.get_random_user_agent(),
+            viewport={"width": 1920, "height": 1080},
+        )
+
+        return self
+
+    async def clean_up(self):
+        """Closes all playwright related instances."""
+        await self.browser_context.close()
+
+        await self.browser.close()
+        await self.pw_context.stop()
+
+    async def scrape(self, url):
+        """Scrapes the given url with inner scraper object."""
+        async with self.semaphore:
+            page = await self.browser_context.new_page()
+
+            # Trick for attempting to bypass restrictions
+            await page.add_init_script(
+                "delete Object.getPrototypeOf(navigator).webdriver"
+            )
+
+            logger.info(f"Scraping {url}...")
+            await page.goto(url, timeout=5000)
+            await self.wait_for_options.async_wait_for(page)
+
+            content = await page.content()
+            result = self.scraper.scrape(content)
+
+            await page.close()
+            return result
+
+
 class WebScraper:
     """
     Webscraper allows scraping websites with given scraping rules and works concurrently.
@@ -34,65 +85,41 @@ class WebScraper:
         self._total_skipped = 0
         self._total = 0
 
-        self.pw_context = None
-        self.browser = None
-        self.browser_context = None
-        self.scrapers = None
-        self.semaphore = None
+        self.browser_instances = []
 
-    async def start(self):
+    async def create_browser_instance(self):
         """
         Creates a persistent browser instance.
 
-        Remember to call quit after done scraping to clean up the browser.
+        Remember to call quit after done scraping to clean up all browser instances.
         """
-        if self.browser is not None or self.pw_context is not None:
+        if len(self.browser_instances) > self.options._multithread_options._pool_size:
             logger.error(
-                "Attempting to create a browser instance when one is already running.."
+                "Attempting to create too many browser instances, this is capped by the pool_size multithreading option."
             )
             return
 
-        self.pw_context = await async_playwright().start()
-        self.browser = await self.pw_context.chromium.launch(headless=True)
+        browser = await BrowserInstance(
+            scraper=deepcopy(self.scraper),
+            max_concurrent_tasks=self.options._multithread_options._max_concurrent_tasks,
+            wait_for_options=self.options._wait_for_options,
+        ).setup()
 
-        self.browser_context = [
-            await self.browser.new_context(
-                user_agent=utils.get_random_user_agent(),
-                viewport={"width": 1920, "height": 1080},
-            )
-            for _ in range(self.options._multithread_options._pool_size)
-        ]
+        self.browser_instances.append(browser)
 
-        self.scrapers = [
-            deepcopy(self.scraper)
-            for _ in range(self.options._multithread_options._pool_size)
-        ]
-
-        self.semaphore = asyncio.Semaphore(
-            self.options._multithread_options._max_concurrent_tasks
-        )
+    async def start(self):
+        """Starts a webscraper instance by creating underlying Playwright instances."""
+        for _ in range(self.options._multithread_options._pool_size):
+            await self.create_browser_instance()
 
     async def quit(self):
         """
-        Stops the playwright instance and cleans up.
+        Stops all playwright instances and cleans up.
         """
-        if self.browser is None or self.pw_context is None:
-            logger.error(
-                "Attempting to destroy playwright instance when none is running.."
-            )
-            return
+        for instance in self.browser_instances:
+            await instance.clean_up()
 
-        for context in self.browser_context:
-            await context.close()
-
-        await self.browser.close()
-        await self.pw_context.stop()
-
-        self.browser = None
-        self.pw_context = None
-        self.scrapers = None
-        self.browser_context = None
-        self.semaphore = None
+        self.browser_instances = []
 
     async def scrape_pages(self):
         """
@@ -102,9 +129,8 @@ class WebScraper:
             logger.error("No URLs in queue, unable to web scrape.")
             return
 
-        has_browser_instance = self.browser is not None
-        if not has_browser_instance:
-            await self.start()
+        if len(self.browser_instances) == 0:
+            self.start()
 
         self._current_result = {
             "results": [],
@@ -126,13 +152,9 @@ class WebScraper:
                     continue
 
                 index = (index + 1) % self.options._multithread_options._pool_size
+                instance = self.browser_instances[index]
 
-                context = self.browser_context[index]
-                scraper = self.scrapers[index]
-
-                tasks.append(
-                    self.__scrape_page_semaphore(context, self.semaphore, url, scraper)
-                )
+                tasks.append(self.__scrape_page_from_pool(instance, url))
 
             await asyncio.gather(*tasks)
 
@@ -144,18 +166,8 @@ class WebScraper:
         except Exception as e:
             logger.error("Error occurred in the webscraper page scraping coroutine:")
             logger.error(e)
-        finally:
-            await self.quit()
 
-        if not has_browser_instance:
-            await self.quit()
-
-    async def __scrape_page_semaphore(self, context, semaphore, url, scraper):
-        """Uses AsyncIOs semaphore for resource management."""
-        async with semaphore:
-            await self.__scrape_page_from_pool(context, url, scraper)
-
-    async def __scrape_page_from_pool(self, context, url, scraper):
+    async def __scrape_page_from_pool(self, instance, url):
         """
         Scrape a webpage using a provided browser context.
 
@@ -164,17 +176,8 @@ class WebScraper:
             url: URL of the webpage to scrape.
             scraper: instance of a scraper to scrape the page with.
         """
-        page = await context.new_page()
-        # Trick for attempting to bypass restrictions
-        await page.add_init_script("delete Object.getPrototypeOf(navigator).webdriver")
         try:
-            logger.info(f"Scraping {url}...")
-
-            await page.goto(url, timeout=self.options._timeout * 1000)
-            await self.options._wait_for_options.async_wait_for(page)
-            content = await page.content()
-
-            result = scraper.scrape(content)
+            result = await instance.scrape(url)
 
             self.current_result["results"].append(result)
             self.current_result["success"] += 1
@@ -183,8 +186,6 @@ class WebScraper:
 
             logger.error(f"Error with scraping url: {url}")
             logger.error(e)
-        finally:
-            await page.close()
 
     async def scrape_page(self, url: str):
         """

@@ -7,4 +7,5 @@ $ poetry run crawler
 $ poetry run scraper
 $ poetry run webscraper
 $ poetry run detection
+$ poetry run crawlermt
 ```
