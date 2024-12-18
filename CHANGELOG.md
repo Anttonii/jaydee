@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.6 (18/12/2024)
+
+### Additions:
+
+- Multithread options can now be passed to crawler and will be utilized when crawler is set to use multithreading.
+
 ## v0.1.5 (15/12/2024)
 
 ### Additions:

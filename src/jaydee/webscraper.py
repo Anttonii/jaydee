@@ -55,10 +55,15 @@ class WebScraper:
                     user_agent=utils.get_random_user_agent(),
                     viewport={"width": 1920, "height": 1080},
                 )
-                for _ in range(self.options._pool_size)
+                for _ in range(self.options._multithread_options._pool_size)
             ]
-            scrapers = [deepcopy(self.scraper) for _ in range(self.options._pool_size)]
-            semaphore = asyncio.Semaphore(self.options._max_concurrent_tasks)
+            scrapers = [
+                deepcopy(self.scraper)
+                for _ in range(self.options._multithread_options._pool_size)
+            ]
+            semaphore = asyncio.Semaphore(
+                self.options._multithread_options._max_concurrent_tasks
+            )
 
             try:
                 index = -1
@@ -73,7 +78,7 @@ class WebScraper:
                         self.total_skipped += 1
                         continue
 
-                    index = (index + 1) % self.options._pool_size
+                    index = (index + 1) % self.options._multithread_options._pool_size
 
                     context = contexts[index]
                     scraper = scrapers[index]

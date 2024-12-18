@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from . import ScraperOptions, WaitForOptions
+from . import ScraperOptions, WaitForOptions, MultithreadOptions
 
 
 @dataclass(init=False)
@@ -16,6 +16,9 @@ class CrawlerOptions:
     # Options for the base scraper
     _scraper_options: ScraperOptions
 
+    # Options regarding multithreading when multithreaded is set to true.
+    _multithread_options: MultithreadOptions
+
     # Whether or not the crawler only stays within it's base URLs domain.
     _strict: bool
 
@@ -29,6 +32,7 @@ class CrawlerOptions:
         scraper_options=ScraperOptions(True),
         strict=True,
         multithreaded=False,
+        multithread_options=MultithreadOptions(),
     ):
         """Setup default values."""
         self._headless = headless
@@ -36,3 +40,4 @@ class CrawlerOptions:
         self._scraper_options = scraper_options
         self._strict = strict
         self._multithreaded = multithreaded
+        self._multithread_options = multithread_options

@@ -2,7 +2,7 @@ import pytest
 
 from unittest.mock import AsyncMock, MagicMock
 
-from jaydee.options import WebScraperOptions, WaitForOptions
+from jaydee.options import WebScraperOptions, WaitForOptions, MultithreadOptions
 from jaydee.webscraper import WebScraper
 from jaydee.scraper import Scraper
 
@@ -16,7 +16,9 @@ def mock_scraper():
 
 @pytest.fixture
 def mock_options():
-    return WebScraperOptions(timeout=5, retries=3, pool_size=2, max_concurrent_tasks=4)
+    return WebScraperOptions(
+        timeout=5, retries=3, multithread_options=MultithreadOptions()
+    )
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from . import WaitForOptions
+from . import WaitForOptions, MultithreadOptions
 
 
 @dataclass(init=False)
@@ -11,11 +11,8 @@ class WebScraperOptions:
     # The amount of retries before dropping a page.
     _retries: int
 
-    # The amount of contexts that are within the pool at any given time.
-    _pool_size: int
-
-    # Max amount of tasks that can be run concurrently.
-    _max_concurrent_tasks: int
+    # Options for multithreading
+    _multithread_options: MultithreadOptions
 
     # Options related to waiting for certain events before scraping.
     _wait_for_options: WaitForOptions
@@ -24,12 +21,10 @@ class WebScraperOptions:
         self,
         timeout: int = 5,
         retries: int = 3,
-        pool_size: int = 3,
-        max_concurrent_tasks: int = 8,
         wait_for_options=WaitForOptions(),
+        multithread_options=MultithreadOptions(),
     ):
         self._timeout = timeout
         self._retries = retries
-        self._pool_size = pool_size
-        self._max_concurrent_tasks = max_concurrent_tasks
         self._wait_for_options = wait_for_options
+        self._multithread_options = multithread_options

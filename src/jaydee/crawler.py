@@ -132,7 +132,8 @@ class Crawler:
 
         if self.options._multithreaded:
             webscraper_options = WebScraperOptions(
-                wait_for_options=self.options._wait_for_options
+                wait_for_options=self.options._wait_for_options,
+                multithread_options=self.options._multithread_options,
             )
             webscraper = WebScraper(self.scraper, options=webscraper_options)
 
