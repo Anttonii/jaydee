@@ -136,6 +136,7 @@ class Crawler:
                 multithread_options=self.options._multithread_options,
             )
             webscraper = WebScraper(self.scraper, options=webscraper_options)
+            await webscraper.start()
 
             while self.running and self.url_queue:
                 webscraper.add_urls(self.url_queue)
@@ -165,6 +166,8 @@ class Crawler:
                 self.url_queue = []
                 if not self.url_queue and self.on_proceed is not None:
                     await self.on_proceed(self)
+
+            await webscraper.close()
         else:
             async with async_playwright() as pw:
                 browser = await pw.chromium.launch(

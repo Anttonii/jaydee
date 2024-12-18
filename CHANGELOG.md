@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.8 (18/12/204)
+
+### Fixes:
+
+- Fixed crawler using multithreaded webscraper.
+
 ## v0.1.7 (18/12/2024)
 
 ### Additions:

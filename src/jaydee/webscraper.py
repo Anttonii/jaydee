@@ -89,6 +89,7 @@ class WebScraper:
         await self.pw_context.stop()
 
         self.browser = None
+        self.pw_context = None
         self.scrapers = None
         self.browser_context = None
         self.semaphore = None
