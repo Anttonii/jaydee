@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.1.5 (15/12/2024)
+
+### Additions:
+
+- Scraper rules can be converted to json files.
+- Crawler can be run multithreaded with a Webscraper instance.
+
+### Changes:
+
+- Options moved to their own files.
+- Wait for options are now their own options since their functionality is shared between crawler and webscraper.
+
+### Fixes:
+
+- Crawler now stops properly when it doesn't find any new links.
+
+### Removed:
+
+- Unnecessary step from CI.
+
 ## v0.1.4 (13/12/2024)
 
 ### Hotfix:

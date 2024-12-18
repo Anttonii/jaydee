@@ -1,6 +1,7 @@
 import pytest
 
-from jaydee import Crawler, ScraperRule
+from jaydee.crawler import Crawler
+from jaydee.scraper import ScraperRule
 
 
 @pytest.fixture

@@ -1,6 +1,7 @@
 import pytest
 
-from jaydee import Scraper, ScraperRule, ScraperOptions
+from jaydee.options import ScraperOptions
+from jaydee.scraper import Scraper, ScraperRule
 
 
 @pytest.fixture(scope="class")

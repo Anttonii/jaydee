@@ -1,7 +1,8 @@
-from dataclasses import dataclass
 import json
 import logging
 import os
+
+from .options import ScraperOptions
 
 from bs4 import BeautifulSoup
 
@@ -94,23 +95,6 @@ VALID_ELEMENTS = [
     "ul",
     "var",
 ]
-
-
-@dataclass(init=False)
-class ScraperOptions:
-    # Whether or not standardized HTML tags are allowed.
-    _allow_unknown_tags: bool
-
-    # Replaces apostrophes and quotes with escape string syntax
-    _add_escapes: bool
-
-    def __init__(
-        self,
-        allow_unknown_tags: bool = False,
-        add_escapes: bool = False,
-    ):
-        self._allow_unknown_tags = allow_unknown_tags
-        self._add_escapes = add_escapes
 
 
 class ScraperRule:
@@ -334,6 +318,32 @@ class Scraper:
             logger.error(e)
 
         return self
+
+    def to_json(self, json_path: str, overwrite: bool = False):
+        """
+        Converts scrapers active rule set into a .json file.
+
+        Args:
+            json_path: the path where the json file will be written to.
+            overwrite: whether or not to overwrite when the path has a pre-existing file.
+        """
+        if len(self.rules) == 0:
+            logger.warning("Can't convert an empty list of rules into a json file.")
+            return
+
+        if os.path.exists(json_path) and not overwrite:
+            logger.info(
+                f"Overwrite flag set to false and path: {json_path} exists, no json file output."
+            )
+            return
+
+        try:
+            with open(json_path, "w") as file:
+                json.dump(self.rules, file)
+            logger.info(f"Scraper rules converted to a json file in path: {json_path}")
+        except Exception as e:
+            logger.error("Error when converting scraper rules to a json file.")
+            logger.error(e)
 
     def scrape(self, document: str = None) -> dict:
         """

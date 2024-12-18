@@ -2,6 +2,8 @@ import logging
 import random
 from urllib.parse import urlparse
 
+from .scraper import ScraperRule, Scraper
+
 logger = logging.getLogger("jd-utils")
 
 
@@ -60,14 +62,7 @@ def validate_url(url: str) -> bool:
 
 
 def get_random_user_agent() -> str | None:
-    """Returns a random user agent from list of defaults."""
-    if len(DEFAULT_USER_AGENTS) == 0:
-        logger.warning("No user agents set, will default to Playwrights user agent.")
-        return None
-
-    if len(DEFAULT_USER_AGENTS) == 1:
-        logger.warning("It's suggested to use more than one user agent.")
-
+    """Returns a random user agent."""
     return random.choice(DEFAULT_USER_AGENTS)
 
 
@@ -78,3 +73,11 @@ def get_chrome_arguments() -> list[str]:
         "--no-sandbox",
         "--disable-dev-shm-usage",
     ]
+
+
+def rules_to_json(rules: list[ScraperRule], json_path: str):
+    """
+    Convert a list of scraper rules into a json file.
+    """
+    scraper = Scraper(rules=rules)
+    scraper.to_json(json_path)

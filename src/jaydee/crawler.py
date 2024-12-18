@@ -1,57 +1,15 @@
-from . import Scraper, ScraperRule, ScraperOptions, utils
+from .scraper import Scraper, ScraperRule
+from .webscraper import WebScraper
+from .options import CrawlerOptions, WebScraperOptions
+from . import utils
 
 import logging
-from dataclasses import dataclass
 from datetime import datetime
 
-import playwright.async_api as pwa
 from playwright.async_api import async_playwright
 
 # Setup the scraper specific logger
 logger = logging.getLogger("jd-crawler")
-
-
-@dataclass(init=False)
-class CrawlerOptions:
-    """Options for the crawler."""
-
-    # Whether or not the instance of Playwright will be headless.
-    _headless: bool
-
-    # If not empty, the crawler waits for selector be present before parsing HTML.
-    _waitForSelector: str | None
-
-    # Whether or not to wait for the network to be idle for half a second before parsing HTML.
-    _waitForIdle: bool
-
-    # If not empty, the crawler waits for equivalent text to be visible on the page.
-    _waitForText: str | None
-
-    # User agent to use for crawling
-    _userAgents: list[str]
-
-    # Options for the base scraper
-    _scraperOptions: ScraperOptions
-
-    # Whether or not the crawler only stays within it's base URLs domain.
-    _strict: bool
-
-    def __init__(
-        self,
-        headless=True,
-        waitForSelector=None,
-        waitForIdle=False,
-        waitForText=None,
-        scraperOptions=ScraperOptions(True),
-        strict=True,
-    ):
-        """Setup default values."""
-        self._headless = headless
-        self._waitForSelector = waitForSelector
-        self._waitForText = waitForText
-        self._waitForIdle = waitForIdle
-        self._scraperOptions = scraperOptions
-        self._strict = strict
 
 
 class Crawler:
@@ -66,7 +24,7 @@ class Crawler:
         options: optionally provide your own options for the crawler
 
     Note: The callback is called when the URL queue is empty. For the crawler process to continue, add URLs to the queue
-    within the callback.
+    within the callback or when handling yielded results.
     """
 
     def __init__(
@@ -88,7 +46,7 @@ class Crawler:
         self.options = options
 
         self.base_url = utils.parse_base_url(initial_url)
-        self.scraper = Scraper(options=self.options._scraperOptions).add_rules(
+        self.scraper = Scraper(options=self.options._scraper_options).add_rules(
             self.rules
         )
 
@@ -101,7 +59,7 @@ class Crawler:
         self.seen_urls = set()
 
         self.add_url(initial_url)
-        self.running = False
+        self._running = False
 
     def __get_standard_rules(self, child_of) -> list[ScraperRule]:
         """
@@ -121,15 +79,13 @@ class Crawler:
         Starts the crawling coroutine.
 
         This includes making requests, scraping links and returning them.
+        Depending on the multithreaded option this will either run multithreaded or with a single thread.
 
         The crawler runs until it's URL queue is empty and yields links of interest. When the URL queue is empty, Crawler
         invokes it's callback function `on_proceed` which should include any possible additions to the URL queue.
 
-        yields a list of urls whenever the crawler has successfully scraped a list of links.
+        Yields a list of urls whenever the crawler has successfully scraped a list of links.
         """
-
-        # Start running
-        self.running = True
 
         async def fetch(browser, url):
             """Used for fetching HTML documents with session from given URL."""
@@ -163,86 +119,106 @@ class Crawler:
                 await page.close()
                 return {"doc": None, "metadata": metadata}
 
-            # If wait for idle is enabled, wait for network to be idle for half a second.
-            # Takes precedence over waiting for a selector.
-            if self.options._waitForIdle:
-                await page.wait_for_load_state("networkidle")
-            # Alternatively a selector can be used.
-            elif self.options._waitForSelector is not None:
-                await page.wait_for_selector(self.options._waitForSelector)
-            elif self.options._waitForText is not None:
-                await pwa.expect(
-                    page.get_by_text(self.options._waitForText)
-                ).to_be_visible()
-
+            await self.options._wait_for_options.async_wait_for(page)
             html = await page.content()
 
             # Add HTML to the metadata
             metadata.update({"content": html})
 
             await page.close()
-
             return {"doc": html, "metadata": metadata}
 
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
-                headless=self.options._headless, args=utils.get_chrome_arguments()
+        self.running = True
+
+        if self.options._multithreaded:
+            webscraper_options = WebScraperOptions(
+                wait_for_options=self.options._wait_for_options
             )
+            webscraper = WebScraper(self.scraper, options=webscraper_options)
 
-            while self.url_queue and self.running:
-                self.current_result = {}
-                self.current_page = ""
+            while self.running and self.url_queue:
+                webscraper.add_urls(self.url_queue)
 
-                # Create browser context with a random user agent.
-                context = await browser.new_context(
-                    user_agent=utils.get_random_user_agent(),
-                    viewport={"width": 1920, "height": 1080},
+                result = await webscraper.scrape_pages()
+                logging.info(
+                    f"Scraped {webscraper.total} with successes: {webscraper.total_success}, failures: {webscraper.total_failures} and skips: {webscraper.total_skipped}"
                 )
 
-                url = self.url_queue.pop()
-                fetch_res = await fetch(context, url)
+                result_links = [
+                    self.__add_base_urls(res["links"])
+                    for res in result["results"]
+                    if "links" in res
+                ]
 
-                if fetch_res is None:
-                    continue
-
-                # If HTML document is none, continue.
-                # fetch() takes care of logging information.
-                if fetch_res["doc"] is None:
-                    yield {"metadata": fetch_res["metadata"]}
-                    continue
-
-                self.current_page = fetch_res["doc"]
-                result = self.scraper.scrape(self.current_page)
-
-                # If there are no links found, skip.
-                if len(result["links"]) == 0:
-                    logger.info(f"No links were found for url: {url}")
-                    yield {"metadata": fetch_res["metadata"]}
-                    continue
-
-                # Incases where href doesn't have the base url, add it to the URL.
-                full_urls = list(
-                    map(
-                        lambda x: self.base_url + x if not utils.validate_url(x) else x,
-                        result["links"],
-                    )
-                )
-
-                self.current_result = {
-                    "links": full_urls,
-                    "metadata": fetch_res["metadata"],
+                metadata = {
+                    "date": datetime.today().strftime("%Y-%m-%d %H:%M:%S"),
+                    "urls": self.url_queue,
+                    "success": webscraper.total_success,
+                    "failures": webscraper.total_failures,
+                    "skipped": webscraper.total_skipped,
                 }
 
+                self.current_result = {"links": result_links, "metadata": metadata}
                 yield self.current_result
 
-                # We have yielded first patch of links
-                # proceed according to callback or if no new urls are added
-                # to the queue, terminate.
+                self.url_queue = []
                 if not self.url_queue and self.on_proceed is not None:
                     await self.on_proceed(self)
+        else:
+            async with async_playwright() as pw:
+                browser = await pw.chromium.launch(
+                    headless=self.options._headless, args=utils.get_chrome_arguments()
+                )
 
-            # Clean up
-            await browser.close()
+                while self.url_queue and self.running:
+                    self.current_result = {}
+                    self.current_page = ""
+
+                    # Create browser context with a random user agent.
+                    context = await browser.new_context(
+                        user_agent=utils.get_random_user_agent(),
+                        viewport={"width": 1920, "height": 1080},
+                    )
+
+                    url = self.url_queue.pop()
+                    fetch_res = await fetch(context, url)
+
+                    if fetch_res is None:
+                        continue
+
+                    # If HTML document is none, continue.
+                    # fetch() takes care of logging information.
+                    if fetch_res["doc"] is None:
+                        yield {"metadata": fetch_res["metadata"]}
+                        continue
+
+                    self.current_page = fetch_res["doc"]
+                    result = self.scraper.scrape(self.current_page)
+
+                    # If there are no links found, skip.
+                    if "links" not in result:
+                        logger.info(f"No links were found for url: {url}")
+                        yield {"links": [], "metadata": fetch_res["metadata"]}
+                        continue
+
+                    # Incases where href doesn't have the base url, add it to the URL.
+                    full_urls = self.__add_base_urls(result["links"])
+                    self.current_result = {
+                        "links": full_urls,
+                        "metadata": fetch_res["metadata"],
+                    }
+
+                    yield self.current_result
+
+                    # We have yielded first patch of links
+                    # proceed according to callback or if no new urls are added
+                    # to the queue, terminate.
+                    if not self.url_queue and self.on_proceed is not None:
+                        await self.on_proceed(self)
+
+                # Clean up
+                logger.info("Crawling ended, cleaning up.")
+                await browser.close()
 
     def stop(self):
         """Stops the crawler."""
@@ -269,6 +245,15 @@ class Crawler:
         else:
             return []
 
+    def __add_base_urls(self, urls: list[str]):
+        """Adds base URL to a list of paths without it."""
+        return list(
+            map(
+                lambda x: self.base_url + x if not utils.validate_url(x) else x,
+                urls,
+            )
+        )
+
     @property
     def current_page(self):
         return self._current_page
@@ -284,3 +269,11 @@ class Crawler:
     @current_result.setter
     def current_result(self, val):
         self._current_result = val
+
+    @property
+    def running(self):
+        return self._running
+
+    @running.setter
+    def running(self, val):
+        self._running = val

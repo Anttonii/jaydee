@@ -1,50 +1,14 @@
 import asyncio
 import logging
 from copy import deepcopy
-from dataclasses import dataclass
 
-from . import Scraper, utils
+from .scraper import Scraper
+from .options import WebScraperOptions
+from . import utils
 
 from playwright.async_api import async_playwright
 
 logger = logging.getLogger("jd-webscraper")
-
-
-@dataclass(init=False)
-class WebScraperOptions:
-    # Timeout limit for each page in seconds.
-    _timeout: int
-
-    # The amount of retries before dropping a page.
-    _retries: int
-
-    # The amount of contexts that are within the pool at any given time.
-    _pool_size: int
-
-    # Max amount of tasks that can be run concurrently.
-    _max_concurrent_tasks: int
-
-    # If not empty, the crawler wait for selector be present before parsing HTML.
-    _waitForSelector: str
-
-    # Whether or not to wait for the network to be idle for half a second before parsing HTML.
-    _waitForIdle: bool
-
-    def __init__(
-        self,
-        timeout: int = 5,
-        retries: int = 3,
-        pool_size: int = 3,
-        max_concurrent_tasks: int = 8,
-        waitForSelector=None,
-        waitForIdle=False,
-    ):
-        self._timeout = timeout
-        self._retries = retries
-        self._pool_size = pool_size
-        self._max_concurrent_tasks = max_concurrent_tasks
-        self._waitForSelector = waitForSelector
-        self._waitForIdle = waitForIdle
 
 
 class WebScraper:
@@ -67,6 +31,8 @@ class WebScraper:
         self._current_result = {}
         self._total_success = 0
         self._total_failures = 0
+        self._total_skipped = 0
+        self._total = 0
 
     async def scrape_pages(self):
         """
@@ -85,7 +51,11 @@ class WebScraper:
 
             browser = await pw.chromium.launch()
             contexts = [
-                await browser.new_context() for _ in range(self.options._pool_size)
+                await browser.new_context(
+                    user_agent=utils.get_random_user_agent(),
+                    viewport={"width": 1920, "height": 1080},
+                )
+                for _ in range(self.options._pool_size)
             ]
             scrapers = [deepcopy(self.scraper) for _ in range(self.options._pool_size)]
             semaphore = asyncio.Semaphore(self.options._max_concurrent_tasks)
@@ -100,6 +70,7 @@ class WebScraper:
                         logger.warning(
                             f"Attempting to scrape invalid URL: {url}, skipping.."
                         )
+                        self.total_skipped += 1
                         continue
 
                     index = (index + 1) % self.options._pool_size
@@ -115,6 +86,9 @@ class WebScraper:
 
                 self.total_success += self.current_result["success"]
                 self.total_failures += self.current_result["failures"]
+                self.total += (
+                    self.total_success + self.total_failures + self.total_skipped
+                )
 
                 return self.current_result
             except Exception as e:
@@ -125,6 +99,7 @@ class WebScraper:
             finally:
                 for context in contexts:
                     await context.close()
+
                 await browser.close()
 
     async def __scrape_page_semaphore(self, context, semaphore, url, scraper):
@@ -148,7 +123,7 @@ class WebScraper:
             logger.info(f"Scraping {url}...")
 
             await page.goto(url, timeout=self.options._timeout * 1000)
-            await self.__wait_for(page)
+            await self.options._wait_for_options.async_wait_for(page)
             content = await page.content()
 
             result = scraper.scrape(content)
@@ -190,7 +165,7 @@ class WebScraper:
                     return {}
 
                 await page.goto(url, timeout=self.options._timeout * 1000)
-                await self.__wait_for(page)
+                await self.options._wait_for_options.async_wait_for(page)
 
                 html = await page.content()
                 result = self.scraper.scrape(html)
@@ -215,13 +190,6 @@ class WebScraper:
 
             self.url_queue.append(url)
 
-    async def __wait_for(self, page):
-        """Wait for idle / selector."""
-        if self.options._waitForIdle:
-            await page.wait_for_load_state("networkidle")
-        elif self.options._waitForSelector is not None:
-            await page.wait_for_selector(self.options._waitForSelector)
-
     @property
     def current_result(self):
         return self._current_result
@@ -245,3 +213,19 @@ class WebScraper:
     @total_failures.setter
     def total_failures(self, val):
         self._total_failures = val
+
+    @property
+    def total(self):
+        return self._total
+
+    @total.setter
+    def total(self, val):
+        self._total = val
+
+    @property
+    def total_skipped(self):
+        return self._total_skipped
+
+    @total_skipped.setter
+    def total_skipped(self, val):
+        self._total_skipped = val

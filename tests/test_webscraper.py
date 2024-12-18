@@ -2,7 +2,9 @@ import pytest
 
 from unittest.mock import AsyncMock, MagicMock
 
-from jaydee import WebScraper, WebScraperOptions, Scraper
+from jaydee.options import WebScraperOptions, WaitForOptions
+from jaydee.webscraper import WebScraper
+from jaydee.scraper import Scraper
 
 
 @pytest.fixture
@@ -88,7 +90,8 @@ async def test_add_urls(webscraper):
 
 @pytest.mark.asyncio
 async def test_wait_for_idle_option(webscraper, mock_playwright):
-    webscraper.options._waitForIdle = True
+    webscraper.options._wait_for_options = WaitForOptions()
+    webscraper.options._wait_for_options._wait_for_idle = True
     mock_pw = mock_playwright
     mock_page = mock_pw["mock_page"]
 
@@ -98,7 +101,8 @@ async def test_wait_for_idle_option(webscraper, mock_playwright):
 
 @pytest.mark.asyncio
 async def test_wait_for_selector_option(webscraper, mock_playwright):
-    webscraper.options._waitForSelector = "#mock-selector"
+    webscraper.options._wait_for_options = WaitForOptions()
+    webscraper.options._wait_for_options._wait_for_selector = "#mock-selector"
     mock_pw = mock_playwright
     mock_page = mock_pw["mock_page"]
 

@@ -2,7 +2,8 @@ import asyncio
 
 from src.jaydee.scraper import Scraper, ScraperRule
 from src.jaydee.webscraper import WebScraper
-from src.jaydee.crawler import Crawler, CrawlerOptions
+from src.jaydee.crawler import Crawler
+from src.jaydee.options import CrawlerOptions
 
 
 async def main():
