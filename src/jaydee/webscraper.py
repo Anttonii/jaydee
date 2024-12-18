@@ -34,6 +34,65 @@ class WebScraper:
         self._total_skipped = 0
         self._total = 0
 
+        self.pw_context = None
+        self.browser = None
+        self.browser_context = None
+        self.scrapers = None
+        self.semaphore = None
+
+    async def start(self):
+        """
+        Creates a persistent browser instance.
+
+        Remember to call quit after done scraping to clean up the browser.
+        """
+        if self.browser is not None or self.pw_context is not None:
+            logger.error(
+                "Attempting to create a browser instance when one is already running.."
+            )
+            return
+
+        self.pw_context = await async_playwright().start()
+        self.browser = await self.pw_context.chromium.launch(headless=True)
+
+        self.browser_context = [
+            await self.browser.new_context(
+                user_agent=utils.get_random_user_agent(),
+                viewport={"width": 1920, "height": 1080},
+            )
+            for _ in range(self.options._multithread_options._pool_size)
+        ]
+
+        self.scrapers = [
+            deepcopy(self.scraper)
+            for _ in range(self.options._multithread_options._pool_size)
+        ]
+
+        self.semaphore = asyncio.Semaphore(
+            self.options._multithread_options._max_concurrent_tasks
+        )
+
+    async def quit(self):
+        """
+        Stops the playwright instance and cleans up.
+        """
+        if self.browser is None or self.pw_context is None:
+            logger.error(
+                "Attempting to destroy playwright instance when none is running.."
+            )
+            return
+
+        for context in self.browser_context:
+            await context.close()
+
+        await self.browser.close()
+        await self.pw_context.stop()
+
+        self.browser = None
+        self.scrapers = None
+        self.browser_context = None
+        self.semaphore = None
+
     async def scrape_pages(self):
         """
         Starts the page scraping coroutine.
@@ -42,70 +101,53 @@ class WebScraper:
             logger.error("No URLs in queue, unable to web scrape.")
             return
 
-        async with async_playwright() as pw:
-            self._current_result = {
-                "results": [],
-                "success": 0,
-                "failures": 0,
-            }
+        has_browser_instance = self.browser is not None
+        if not has_browser_instance:
+            await self.start()
 
-            browser = await pw.chromium.launch()
-            contexts = [
-                await browser.new_context(
-                    user_agent=utils.get_random_user_agent(),
-                    viewport={"width": 1920, "height": 1080},
-                )
-                for _ in range(self.options._multithread_options._pool_size)
-            ]
-            scrapers = [
-                deepcopy(self.scraper)
-                for _ in range(self.options._multithread_options._pool_size)
-            ]
-            semaphore = asyncio.Semaphore(
-                self.options._multithread_options._max_concurrent_tasks
-            )
+        self._current_result = {
+            "results": [],
+            "success": 0,
+            "failures": 0,
+        }
 
-            try:
-                index = -1
-                tasks = []
-                while self.url_queue:
-                    url = self.url_queue.pop()
+        try:
+            index = -1
+            tasks = []
+            while self.url_queue:
+                url = self.url_queue.pop()
 
-                    if not utils.validate_url(url):
-                        logger.warning(
-                            f"Attempting to scrape invalid URL: {url}, skipping.."
-                        )
-                        self.total_skipped += 1
-                        continue
-
-                    index = (index + 1) % self.options._multithread_options._pool_size
-
-                    context = contexts[index]
-                    scraper = scrapers[index]
-
-                    tasks.append(
-                        self.__scrape_page_semaphore(context, semaphore, url, scraper)
+                if not utils.validate_url(url):
+                    logger.warning(
+                        f"Attempting to scrape invalid URL: {url}, skipping.."
                     )
+                    self.total_skipped += 1
+                    continue
 
-                await asyncio.gather(*tasks)
+                index = (index + 1) % self.options._multithread_options._pool_size
 
-                self.total_success += self.current_result["success"]
-                self.total_failures += self.current_result["failures"]
-                self.total += (
-                    self.total_success + self.total_failures + self.total_skipped
+                context = self.browser_context[index]
+                scraper = self.scrapers[index]
+
+                tasks.append(
+                    self.__scrape_page_semaphore(context, self.semaphore, url, scraper)
                 )
 
-                return self.current_result
-            except Exception as e:
-                logger.error(
-                    "Error occurred in the webscraper page scraping coroutine:"
-                )
-                logger.error(e)
-            finally:
-                for context in contexts:
-                    await context.close()
+            await asyncio.gather(*tasks)
 
-                await browser.close()
+            self.total_success += self.current_result["success"]
+            self.total_failures += self.current_result["failures"]
+            self.total += self.total_success + self.total_failures + self.total_skipped
+
+            return self.current_result
+        except Exception as e:
+            logger.error("Error occurred in the webscraper page scraping coroutine:")
+            logger.error(e)
+        finally:
+            await self.quit()
+
+        if not has_browser_instance:
+            await self.quit()
 
     async def __scrape_page_semaphore(self, context, semaphore, url, scraper):
         """Uses AsyncIOs semaphore for resource management."""

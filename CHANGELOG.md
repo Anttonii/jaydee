@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.7 (18/12/2024)
+
+### Additions:
+
+- Webscraper now has persistent browser instance.
+
+### Removed:
+
+- Tests that tested Playwright functionality.
+
 ## v0.1.6 (18/12/2024)
 
 ### Additions:
