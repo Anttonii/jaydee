@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.10 (19/12/2024)
+
+### Fixes:
+
+- Scraper now properly converts it's rule set into a json and reads from a json file.
+
 ## v0.1.9 (18/12/2024)
 
 ### Fixes:

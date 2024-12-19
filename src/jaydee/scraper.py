@@ -254,6 +254,7 @@ class Scraper:
 
         if rule.attributes is not None:
             self.__validate_html_tag(rule.attributes)
+
         self.rules[rule.target] = rule
 
     def __validate_html_tag(self, attributes):
@@ -327,6 +328,10 @@ class Scraper:
             json_path: the path where the json file will be written to.
             overwrite: whether or not to overwrite when the path has a pre-existing file.
         """
+
+        def convert(value):
+            return value.replace("_", "") if value != "_attribs" else "attributes"
+
         if len(self.rules) == 0:
             logger.warning("Can't convert an empty list of rules into a json file.")
             return
@@ -337,9 +342,15 @@ class Scraper:
             )
             return
 
+        rules_data = []
+        for rule in self.rules.values():
+            dict = rule.__dict__
+            keymap = {k: convert(k) for k in dict.keys()}
+            rules_data.append({nk: dict[ok] for (ok, nk) in keymap.items()})
+
         try:
             with open(json_path, "w") as file:
-                json.dump(self.rules, file)
+                json.dump(rules_data, file)
             logger.info(f"Scraper rules converted to a json file in path: {json_path}")
         except Exception as e:
             logger.error("Error when converting scraper rules to a json file.")
