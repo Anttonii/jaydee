@@ -3,7 +3,7 @@ import asyncio
 from src.jaydee.scraper import Scraper, ScraperRule
 from src.jaydee.webscraper import WebScraper
 from src.jaydee.crawlers import LinkCrawler
-from src.jaydee.options import CrawlerOptions
+from src.jaydee.options import LinkCrawlerOptions
 
 
 async def main():
@@ -24,7 +24,7 @@ async def main():
     async def on_proceed(crawler):
         crawler.stop()
 
-    options = CrawlerOptions(headless=True)
+    options = LinkCrawlerOptions(headless=True)
     crawler = LinkCrawler(
         "https://www.nba.com/stats/players/shooting",
         on_proceed,

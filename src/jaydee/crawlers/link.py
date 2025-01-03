@@ -1,7 +1,7 @@
 from .base import BaseCrawler
 from jaydee.scraper import Scraper, ScraperRule
 from jaydee.webscraper import WebScraper
-from jaydee.options import CrawlerOptions, WebScraperOptions
+from jaydee.options import LinkCrawlerOptions, WebScraperOptions
 from jaydee import utils
 
 import logging
@@ -34,7 +34,7 @@ class LinkCrawler(BaseCrawler):
         callback=None,
         rule: ScraperRule = None,
         child_of=None,
-        options: CrawlerOptions = CrawlerOptions(),
+        options: LinkCrawlerOptions = LinkCrawlerOptions(),
     ):
         super().__init__()
 

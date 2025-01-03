@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.12 (03/01/2025)
+
+### Added:
+
+- GitCrawler can now check for valid repositories.
+- GitCrawler also has it's own options and settings `strict` to true enforces checking for repository validity.
+
 ## v0.1.11 (03/01/2025)
 
 ### Breaking changes:

@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from src.jaydee.crawlers import LinkCrawler
-from src.jaydee.options import CrawlerOptions, WaitForOptions, MultithreadOptions
+from src.jaydee.options import LinkCrawlerOptions, WaitForOptions, MultithreadOptions
 
 
 # A multithreaded crawler
@@ -22,7 +22,7 @@ async def main():
     # Avoid using wait for idle in real code and instead use a selector.
     wait_for = WaitForOptions(wait_for_idle=True)
     mt_options = MultithreadOptions(pool_size=3, max_concurrent_tasks=1)
-    options = CrawlerOptions(
+    options = LinkCrawlerOptions(
         headless=True,
         multithreaded=True,
         wait_for_options=wait_for,

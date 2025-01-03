@@ -4,8 +4,19 @@ from . import ScraperOptions, WaitForOptions, MultithreadOptions
 
 
 @dataclass(init=False)
-class CrawlerOptions:
-    """Options for crawler instances."""
+class GitCrawlerOptions:
+    """Options for a git crawler instance."""
+
+    # Checks if a given URL is a valid git repo before processing it further.
+    _strict: bool
+
+    def __init__(self, strict=False):
+        self._strict = strict
+
+
+@dataclass(init=False)
+class LinkCrawlerOptions:
+    """Options for a link crawler instance."""
 
     # Whether or not the instance of Playwright will be headless.
     _headless: bool
