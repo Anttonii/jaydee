@@ -72,6 +72,11 @@ def get_chrome_arguments() -> list[str]:
         "--disable-features=Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider,CalculateNativeWinOcclusion,InterestFeedContentSuggestions,CertificateTransparencyComponentUpdater,AutofillServerCommunication,PrivacySandboxSettings4,AutomationControlled",
         "--no-sandbox",
         "--disable-dev-shm-usage",
+        "--disable-notifications",
+        "--disable-extensions",
+        "--disable-background-networking",
+        "--ignore-certificate-errors",
+        "--disable-popup-blocking",
     ]
 
 

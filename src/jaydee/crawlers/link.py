@@ -1,20 +1,21 @@
-from .scraper import Scraper, ScraperRule
-from .webscraper import WebScraper
-from .options import CrawlerOptions, WebScraperOptions
-from . import utils
+from .base import BaseCrawler
+from jaydee.scraper import Scraper, ScraperRule
+from jaydee.webscraper import WebScraper
+from jaydee.options import CrawlerOptions, WebScraperOptions
+from jaydee import utils
 
 import logging
 from datetime import datetime
 
 from playwright.async_api import async_playwright
 
-# Setup the scraper specific logger
-logger = logging.getLogger("jd-crawler")
+# Setup the link crawler specific logger
+logger = logging.getLogger("jd-link-crawler")
 
 
-class Crawler:
+class LinkCrawler(BaseCrawler):
     """
-    Crawler collects links of interest, adds them into a queue and then scrapes links.
+    LinkCrawler collects links of interest, adds them into a queue and then scrapes links.
 
     Args:
         initial_url: the url starting point of the crawling
@@ -35,6 +36,8 @@ class Crawler:
         child_of=None,
         options: CrawlerOptions = CrawlerOptions(),
     ):
+        super().__init__()
+
         if not utils.validate_url(initial_url):
             logger.error("Invalid URL passed to Crawler.")
 
@@ -59,7 +62,6 @@ class Crawler:
         self.seen_urls = set()
 
         self.add_url(initial_url)
-        self._running = False
 
     def __get_standard_rules(self, child_of) -> list[ScraperRule]:
         """
@@ -121,9 +123,6 @@ class Crawler:
 
             await self.options._wait_for_options.async_wait_for(page)
             html = await page.content()
-
-            # Add HTML to the metadata
-            metadata.update({"content": html})
 
             await page.close()
             return {"doc": html, "metadata": metadata}
@@ -273,11 +272,3 @@ class Crawler:
     @current_result.setter
     def current_result(self, val):
         self._current_result = val
-
-    @property
-    def running(self):
-        return self._running
-
-    @running.setter
-    def running(self, val):
-        self._running = val

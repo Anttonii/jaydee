@@ -5,7 +5,7 @@ from . import ScraperOptions, WaitForOptions, MultithreadOptions
 
 @dataclass(init=False)
 class CrawlerOptions:
-    """Options for the crawler."""
+    """Options for crawler instances."""
 
     # Whether or not the instance of Playwright will be headless.
     _headless: bool

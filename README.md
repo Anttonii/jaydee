@@ -2,6 +2,11 @@
 
 Crawl websites and scrape HTML documents using a .json file schema.
 
+## Features:
+
+- Scrape websites flexibly by with .json schemas.
+- Scrape git repositories and store the code content.
+
 ## Installation
 
 Make sure you have playwright installed with:
@@ -23,11 +28,12 @@ $ pip install jaydee
 
 More in-depth usage examples can be found in the `examples` directory.
 
-Crawling:
+Crawling for links:
+
 ```python
 import asyncio
 
-from jaydee.crawler import Crawler
+from jaydee.crawlers import LinkCrawler
 
 
 async def main():
@@ -37,7 +43,7 @@ async def main():
         # this page is only added once since crawler keeps track of pages it has visited.
         crawler.add_url("https://www.example.com/foo")
 
-    crawler = Crawler(
+    crawler = LinkCrawler(
         "https://www.example.com",
         on_proceed,
     )
@@ -52,6 +58,7 @@ def start():
 ```
 
 Scraping example with requests:
+
 ```python
 import requests
 

@@ -1,6 +1,6 @@
 import asyncio
 
-from src.jaydee.crawler import Crawler
+from src.jaydee.crawlers import LinkCrawler
 from src.jaydee.options import CrawlerOptions, WaitForOptions
 
 
@@ -14,7 +14,7 @@ async def main():
     # Avoid using wait for idle in real code and instead use a selector.
     wait_for = WaitForOptions(wait_for_idle=True)
     options = CrawlerOptions(headless=True, wait_for_options=wait_for)
-    crawler = Crawler(
+    crawler = LinkCrawler(
         "https://www.reddit.com",
         on_proceed,
         options=options,

@@ -1,6 +1,6 @@
 import pytest
 
-from jaydee.crawler import Crawler
+from jaydee.crawlers import LinkCrawler
 from jaydee.scraper import ScraperRule
 
 
@@ -15,7 +15,7 @@ def mock_child_of():
 
 
 def test_add_url(valid_url):
-    crawler = Crawler(valid_url, None)
+    crawler = LinkCrawler(valid_url, None)
     new_url = "https://example.com/new-page"
     crawler.add_url(new_url)
 
@@ -31,7 +31,7 @@ def test_add_url(valid_url):
 
 
 def test_initialization(valid_url, mock_child_of):
-    crawler = Crawler(valid_url, None, child_of=mock_child_of)
+    crawler = LinkCrawler(valid_url, None, child_of=mock_child_of)
 
     assert crawler.base_url == "https://example.com"
     assert crawler.url_queue == [valid_url]

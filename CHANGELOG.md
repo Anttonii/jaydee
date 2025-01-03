@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.11 (03/01/2025)
+
+### Breaking changes:
+
+- Crawlers now extend a base class, the pre-existing crawler is now called a link crawler.
+
+### Added:
+
+- Github crawling
+- Chromium instances are loaded with more options that aim to make the instances less memory and processing power intensive.
+
 ## v0.1.10 (19/12/2024)
 
 ### Fixes:
